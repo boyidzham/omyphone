@@ -6,7 +6,8 @@ Bluetooth-paired phone. The PC acts as an HFP hands-free unit, like a car kit.
 Read these first:
 - `docs/research.md`: what was proven on the real machine, plus the gotchas
 - `docs/superpowers/specs/2026-09-27-omyphone-v1-design.md`: the v1 design
-- `docs/superpowers/plans/2026-09-27-omyphone-v1.md`: the implementation plan
+- `docs/superpowers/plans/`: implementation plans. They are working notes, kept
+  locally and git-ignored, so they may be missing in a fresh clone.
 
 ## Layout
 
@@ -44,8 +45,8 @@ never touch the real desktop bus.
 - The helper must never crash on input. Every failure becomes an `error` event or
   a stderr line.
 - **Real calls cost money and reach real people.** Never dial, answer or hang up on
-  the real phone without asking Boss first. Automated tests use the fakes only.
-- Pushing to GitHub and submitting to the Omarchy marketplace need Boss's go-ahead.
+  the real phone without asking the maintainer first. Automated tests use the fakes only.
+- Pushing to GitHub and submitting to the Omarchy marketplace need the maintainer's go-ahead.
 
 ## Development loop
 
