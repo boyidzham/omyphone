@@ -11,6 +11,8 @@ from pathlib import Path
 
 from gi.repository import Gio, GLib
 
+from .dbuserror import remote_message
+
 OBEX = "org.bluez.obex"
 OBEX_PATH = "/org/bluez/obex"
 CLIENT = "org.bluez.obex.Client1"
@@ -83,7 +85,7 @@ class _Pull:
             try:
                 value = bus.call_finish(result).unpack()
             except GLib.Error as error:
-                self._fail(_remote_message(error))
+                self._fail(remote_message(error))
                 return
             if self.finished:
                 if method == "CreateSession":
@@ -181,20 +183,3 @@ def _ignore(bus, result):
         bus.call_finish(result)
     except GLib.Error:
         pass
-
-
-def _remote_message(error):
-    """The human part of a D-Bus error reply, without the GDBus.Error:<name>: prefix.
-
-    Gio.DBusError.strip_remote_error(error) is documented to remove this prefix
-    in place, but on this machine's PyGObject/GLib it mutates a temporary copy:
-    it returns True yet error.message (and even error.copy().message) still
-    carry the prefix. Gio.DBusError.get_remote_error(error) does correctly
-    return the parsed error name, so the known prefix is stripped by hand.
-    """
-    name = Gio.DBusError.get_remote_error(error)
-    if name:
-        prefix = f"GDBus.Error:{name}: "
-        if error.message.startswith(prefix):
-            return error.message[len(prefix):]
-    return error.message

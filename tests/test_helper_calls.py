@@ -143,6 +143,7 @@ class HelperCallTests(unittest.TestCase):
         self.helper.send({"cmd": "answer", "call": path})
         error = self.helper.wait_for(is_event("error", cmd="answer"))
         self.assertIn("not incoming", error["message"])
+        self.assertFalse(error["message"].startswith("GDBus.Error"), error["message"])
 
     def test_dial_without_phone(self):
         self.fake.control("RemoveGateway")

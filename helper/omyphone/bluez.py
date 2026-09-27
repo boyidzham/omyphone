@@ -10,6 +10,8 @@ import time
 
 from gi.repository import Gio, GLib
 
+from .dbuserror import remote_message
+
 HFP_AG_UUID = "0000111f-0000-1000-8000-00805f9b34fb"
 BLUEZ = "org.bluez"
 
@@ -83,5 +85,4 @@ class PhoneLink:
         try:
             bus.call_finish(result)
         except GLib.Error as error:
-            Gio.DBusError.strip_remote_error(error)
-            print(f"omyphone: connect failed: {error.message}", file=sys.stderr)
+            print(f"omyphone: connect failed: {remote_message(error)}", file=sys.stderr)

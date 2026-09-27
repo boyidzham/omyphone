@@ -8,6 +8,8 @@ the phone), so it is not logged as a finished call.
 """
 from gi.repository import Gio, GLib
 
+from .dbuserror import remote_message
+
 SERVICE = "org.pipewire.Telephony"
 MANAGER_PATH = "/org/pipewire/Telephony"
 MANAGER = "org.ofono.Manager"
@@ -77,8 +79,7 @@ class Telephony:
             try:
                 bus.call_finish(result)
             except GLib.Error as error:
-                Gio.DBusError.strip_remote_error(error)
-                on_error(error.message)
+                on_error(remote_message(error))
         self._bus.call(SERVICE, path, iface, method, params, None, Gio.DBusCallFlags.NONE, 10000, None, done)
 
     def _on_appeared(self, _bus, _name, _owner):
