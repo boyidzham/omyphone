@@ -131,9 +131,11 @@ All D-Bus calls are asynchronous on the existing GLib main loop, as in
 3. For each folder: `PhonebookAccess1.Select("int", folder)`, then
    `PullAll(path, {Format: "vcard30"})`. Contacts sync pulls `pb`, `cch` and
    `mch`; a history-only sync pulls `cch` and `mch`.
-4. Track each transfer through `org.bluez.obex.Transfer1` `PropertiesChanged`
-   (`Status` `complete` or `error`); the object may also vanish on completion,
-   which counts as complete if the file exists.
+4. Track each transfer by reading `org.bluez.obex.Transfer1` `Status` every
+   200 ms until `complete` or `error` (the method the real-phone probe used; a
+   signal subscription made after `PullAll` returns could miss a fast transfer).
+   The object may also vanish on completion, which counts as complete if the
+   file exists.
 5. Files go to `$XDG_RUNTIME_DIR/omyphone/` (created mode 0700, tmpfs), are
    parsed, then deleted.
 6. `Client1.RemoveSession`. Also removed on any error, and on helper stop.
