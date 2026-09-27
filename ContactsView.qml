@@ -73,7 +73,7 @@ Column {
     TextField {
       id: search
       width: parent.width - refresh.width - parent.spacing
-      placeholderText: "Search contacts"
+      placeholderText: "Search " + root.all.length + " contacts"
       Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Escape) {
           root.closeRequested()

@@ -1,6 +1,6 @@
 # omyphone contacts design
 
-Date: 2026-09-28. Status: approved in conversation, written spec awaiting review.
+Date: 2026-09-28. Status: approved. Revised during implementation (number matching, transfer polling).
 Builds on the v1 design ([`2026-09-27-omyphone-v1-design.md`](2026-09-27-omyphone-v1-design.md)).
 Background and test results: [`docs/research.md`](../../research.md).
 

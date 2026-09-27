@@ -76,8 +76,9 @@ Contacts are optional and stay off until you turn them on:
    **Sync Contacts** (the switch appears after the first sync attempt). Android phones
    usually ask with a popup.
 
-OMyPhone then syncs by itself every time the phone connects. Names and numbers (no
-photos) are kept only on your PC, in `~/.local/state/omyphone/`, readable only by you.
+OMyPhone then syncs by itself every time the phone connects. Names, numbers and call
+history (no photos) are kept only on your PC, in `~/.local/state/omyphone/`, readable
+only by you.
 
 ## Tips
 

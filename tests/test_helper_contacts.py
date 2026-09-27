@@ -35,24 +35,24 @@ class HelperContactsTests(unittest.TestCase):
         self.addCleanup(self.obex.stop)
 
     def launch_helper(self):
-        # Deviation from the brief: split out of start_helper() so tests that need
-        # to see the helper's very first contacts-status event can read it before
-        # gateway discovery (which needs an extra round trip: GetNameOwner, then
-        # GetModems) has a chance to arrive first and get skipped over by a
-        # wait_for("gateway") below it. See task-7-report.md.
+        # Split out of start_helper() so tests that need to see the helper's
+        # very first contacts-status event can read it before gateway discovery
+        # (which needs an extra round trip: GetNameOwner, then GetModems) has a
+        # chance to arrive first and get skipped over by a wait_for("gateway")
+        # below it.
         self.helper = Helper(self.dir)
         self.addCleanup(self.helper.close)
 
     def start_helper(self):
         self.launch_helper()
-        # Deviation from the brief: wait for both "gateway" and a connected "phone"
-        # in one pass (order between them is not guaranteed). sync-contacts needs
-        # the phone's address (self._phone_address in Engine, set from the "phone"
-        # event); without this wait, tests that send sync-contacts right after
-        # start_helper() race PhoneLink's own discovery and can see "Phone not
-        # connected" instead of exercising obexd. The fake bluez in this file's
-        # setUp always reports the phone connected, so this never blocks. See
-        # task-7-report.md.
+        # wait_for drops events it skips, so wait for both "gateway" and a
+        # connected "phone" in one pass (their order is not guaranteed).
+        # sync-contacts needs the phone's address (self._phone_address in
+        # Engine, set from the "phone" event); without this wait, tests that
+        # send sync-contacts right after start_helper() race PhoneLink's own
+        # discovery and can see "Phone not connected" instead of exercising
+        # obexd. The fake bluez in this file's setUp always reports the phone
+        # connected, so this never blocks.
         seen = {"gateway": False, "phone": False}
 
         def both(e):
@@ -90,11 +90,11 @@ class HelperContactsTests(unittest.TestCase):
         self.assertNotIn("Test Owner", names)
         self.assertEqual(names, sorted(names, key=str.casefold))
         self.status("ready")
-        # Deviation from the brief: contacts-status "ready" is emitted (sync.py
-        # _done()) before the same call's history.calls/.save() runs, so history.json
-        # is not guaranteed to exist yet. The "recents" event with entries is emitted
-        # only after history_changed(), i.e. after history.save() -- wait for it
-        # before checking the private files. See task-7-report.md.
+        # wait_for drops events it skips. contacts-status "ready" is emitted
+        # (sync.py _done()) before the same call's history.calls/.save() runs, so
+        # history.json is not guaranteed to exist yet. The "recents" event with
+        # entries is emitted only after history_changed(), i.e. after
+        # history.save() -- wait for it before checking the private files.
         self.helper.wait_for(lambda e: e.get("event") == "recents" and e["entries"])
         log = self.obex.log()
         self.assertEqual(log[0], f"CreateSession {ADDRESS} PBAP")
