@@ -141,7 +141,8 @@ Research showed that the iPhone never reconnects by itself, and that a PC-side
 connect brings the call profile up within 2 seconds. Nothing is attempted while
 the adapter is off.
 
-**Recents.** One entry is added when a call ends:
+**Recents.** Kept in `recents.json`, mode 0600 (a file an older version left
+readable is tightened on load). One entry is added when a call ends:
 `{"number":s,"direction":"incoming"|"outgoing"|"missed","start":epoch_s,"duration":s}`.
 - PipeWire gives no direction or start time, so both come from watching the call
   from its first state. Calls in progress are kept in `calls.json` (next to

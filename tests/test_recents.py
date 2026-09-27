@@ -39,6 +39,18 @@ class RecentsTests(unittest.TestCase):
         self.assertEqual(len(loaded), LIMIT)
         self.assertEqual(loaded[0]["number"], str(LIMIT + 4))
 
+    def test_saved_file_is_private(self):
+        recents = Recents(self.path)
+        recents.add(entry("1"))
+        self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
+
+    def test_file_left_readable_by_an_older_version_is_made_private(self):
+        self.path.parent.mkdir(parents=True)
+        self.path.write_text(json.dumps([entry("1")]))
+        self.path.chmod(0o644)
+        self.assertEqual(len(Recents(self.path).entries), 1)
+        self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
+
     def test_corrupt_file_is_empty(self):
         self.path.parent.mkdir(parents=True)
         self.path.write_text("{not json")

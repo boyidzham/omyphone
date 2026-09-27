@@ -1,10 +1,14 @@
-"""Recent calls, kept as a JSON list (newest first) under $XDG_STATE_HOME/omyphone."""
+"""Recent calls, kept as a JSON list (newest first) under $XDG_STATE_HOME/omyphone.
+
+The file is readable only by this user, like the other state files: it holds
+phone numbers and call times.
+"""
 import json
 import os
 import sys
 from pathlib import Path
 
-from .contacts import numbers_match
+from .contacts import numbers_match, write_private
 
 LIMIT = 100
 DIRECTIONS = ("incoming", "outgoing", "missed")
@@ -32,6 +36,10 @@ class Recents:
             data = json.loads(self.path.read_text())
         except (OSError, ValueError):
             return []
+        try:
+            os.chmod(self.path, 0o600)  # older versions saved it readable by everyone
+        except OSError:
+            pass
         if not isinstance(data, list):
             return []
         return [e for e in data if _valid(e)][:LIMIT]
@@ -40,10 +48,7 @@ class Recents:
         self.entries.insert(0, entry)
         del self.entries[LIMIT:]
         try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(self.entries))
-            os.replace(tmp, self.path)
+            write_private(self.path, self.entries)
         except OSError as error:
             print(f"omyphone: could not save recents: {error}", file=sys.stderr)
 
