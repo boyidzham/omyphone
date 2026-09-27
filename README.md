@@ -7,7 +7,7 @@ car does. Calls go over your phone's own number and plan. There is no app on the
 no VoIP account and no cloud: your call never leaves your desk and your phone.
 
 <p align="center">
-  <img src="docs/images/popup.png" alt="The OMyPhone popup with the keypad" width="300">
+  <img src="preview.png" alt="The OMyPhone popup with the keypad" width="300">
   &nbsp;&nbsp;
   <img src="docs/images/contacts.png" alt="The Contacts tab with search, synced from the phone" width="300">
 </p>
