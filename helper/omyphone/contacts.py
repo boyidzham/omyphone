@@ -29,12 +29,18 @@ def numbers_match(a, b):
     return a[-n:] == b[-n:]
 
 
+def _by_name(contacts):
+    """A-Z by name, contacts without a name last."""
+    return sorted(contacts, key=lambda c: (c["name"] == "", c["name"].casefold()))
+
+
 class Directory:
-    """Name lookup by number. When contacts share a number, the first A-Z wins."""
+    """Name lookup by number. When contacts share a number, the first A-Z wins.
+    Contacts without a name are left out, so they never hide a named one."""
 
     def __init__(self, contacts):
         self._buckets = {}  # last 7 digits -> [(digits, name)]
-        for contact in sorted(contacts, key=lambda c: c["name"].casefold()):
+        for contact in _by_name(c for c in contacts if c["name"]):
             for entry in contact["numbers"]:
                 digits = _digits(entry["number"])
                 if digits:
@@ -51,9 +57,9 @@ class Directory:
 
 
 def rows(contacts):
-    """One row per number for the Contacts tab, sorted by name."""
+    """One row per number for the Contacts tab, sorted by name (nameless last)."""
     return [{"name": c["name"], "number": n["number"], "label": n["label"]}
-            for c in sorted(contacts, key=lambda c: c["name"].casefold()) for n in c["numbers"]]
+            for c in _by_name(contacts) for n in c["numbers"]]
 
 
 def write_private(path, data):

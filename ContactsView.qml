@@ -16,7 +16,8 @@ Column {
   readonly property var status: phone ? phone.contactsStatus : ({ state: "off", enabled: false, synced: 0, message: "" })
   readonly property var all: phone ? phone.contacts : []
   readonly property bool setup: all.length === 0
-  readonly property var shown: all.filter(function(r) { return Format.matchesContact(r, search.text) }).slice(0, 8)
+  readonly property var shown: all.filter(function(r) { return Format.matchesContact(r, search.text) })
+  readonly property int rowHeight: Style.space(44)
 
   signal closeRequested()
   signal tabRequested(int direction)
@@ -138,54 +139,61 @@ Column {
     font.pixelSize: Style.font.body
   }
 
-  Column {
-    visible: !root.setup
+  // All matches, 8 rows high; scroll with the wheel, or Up/Down from the search.
+  ListView {
+    id: list
+    visible: !root.setup && count > 0
     width: parent.width
+    height: Math.min(count, 8) * (root.rowHeight + spacing) - spacing
     spacing: Style.space(2)
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+    model: root.shown
+    currentIndex: root.selected
+    highlightFollowsCurrentItem: false
+    onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
 
-    Repeater {
-      model: root.shown
+    delegate: MouseArea {
+      id: row
+      required property var modelData
+      required property int index
+      width: list.width
+      height: root.rowHeight
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: if (root.phone) root.phone.dial(modelData.number)
 
-      MouseArea {
-        id: row
-        required property var modelData
-        required property int index
-        width: root.width
-        height: Style.space(44)
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: if (root.phone) root.phone.dial(modelData.number)
+      Rectangle {
+        anchors.fill: parent
+        radius: Style.cornerRadius
+        color: row.containsMouse || row.index === root.selected
+          ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08) : "transparent"
+      }
 
-        Rectangle {
-          anchors.fill: parent
-          radius: Style.cornerRadius
-          color: row.containsMouse || row.index === root.selected
-            ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08) : "transparent"
+      Column {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: Style.space(8)
+        anchors.rightMargin: Style.space(8)
+        anchors.verticalCenter: parent.verticalCenter
+
+        // A contact without a name shows its number on top, and only the label below.
+        Text {
+          width: parent.width
+          elide: Text.ElideRight
+          text: Format.title(row.modelData)
+          color: Color.foreground
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
         }
-
-        Column {
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.leftMargin: Style.space(8)
-          anchors.rightMargin: Style.space(8)
-          anchors.verticalCenter: parent.verticalCenter
-
-          Text {
-            width: parent.width
-            elide: Text.ElideRight
-            text: row.modelData.name
-            color: Color.foreground
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-          }
-          Text {
-            width: parent.width
-            elide: Text.ElideRight
-            text: row.modelData.number + (row.modelData.label ? " · " + row.modelData.label : "")
-            color: Color.muted
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-          }
+        Text {
+          width: parent.width
+          elide: Text.ElideRight
+          text: [row.modelData.name ? row.modelData.number : "", row.modelData.label]
+            .filter(function(part) { return part !== "" }).join(" · ")
+          color: Color.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
         }
       }
     }

@@ -69,15 +69,34 @@ class ContactsTests(unittest.TestCase):
         text = "BEGIN:VCARD\nVERSION:3.0\nORG:Kedai Runcit;Cawangan\\; Satu\nTEL:0388887777\nEND:VCARD\n"
         self.assertEqual(contacts(text)[0]["name"], "Kedai Runcit")
 
-    def test_number_as_name_when_no_name_at_all(self):
+    def test_empty_name_when_no_name_at_all(self):
+        # Not the number: the UI shows the number itself, and a fake name would show it twice.
         text = "BEGIN:VCARD\nVERSION:3.0\nTEL:0388887777\nEND:VCARD\n"
-        self.assertEqual(contacts(text)[0]["name"], "0388887777")
+        self.assertEqual(contacts(text)[0], {"name": "", "numbers": [{"number": "0388887777", "label": ""}]})
 
     def test_vcard21_quoted_printable_does_not_crash(self):
         text = ("BEGIN:VCARD\r\nVERSION:2.1\r\nN;ENCODING=QUOTED-PRINTABLE;CHARSET=UTF-8:=C3=81li;;;;\r\n"
                 "TEL;CELL;VOICE:+60123456789\r\nEND:VCARD\r\n")
         result = contacts(text)
         self.assertEqual(result[0]["numbers"], [{"number": "+60123456789", "label": "Mobile"}])
+
+    def test_vcard21_quoted_printable_name_is_decoded(self):
+        text = ("BEGIN:VCARD\r\nVERSION:2.1\r\nN;ENCODING=QUOTED-PRINTABLE;CHARSET=UTF-8:=E9=99=88;=E5=B0=8F=E6=98=8E;;;\r\n"
+                "TEL;CELL:0123\r\nEND:VCARD\r\n")
+        self.assertEqual(contacts(text)[0]["name"], "小明 陈")
+
+    def test_quoted_printable_soft_line_break_is_joined(self):
+        text = ("BEGIN:VCARD\r\nVERSION:2.1\r\nFN;CHARSET=UTF-8;QUOTED-PRINTABLE:=C3=81li =\r\n"
+                "Ahmad=20bin=\r\n Abu\r\nTEL:0123\r\nEND:VCARD\r\n")
+        self.assertEqual(contacts(text)[0]["name"], "Áli Ahmad bin Abu")
+
+    def test_quoted_printable_in_another_charset(self):
+        text = "BEGIN:VCARD\nVERSION:2.1\nFN;ENCODING=QUOTED-PRINTABLE;CHARSET=ISO-8859-1:Jos=E9\nTEL:0123\nEND:VCARD\n"
+        self.assertEqual(contacts(text)[0]["name"], "José")
+
+    def test_bad_quoted_printable_does_not_crash(self):
+        text = "BEGIN:VCARD\nVERSION:2.1\nFN;QUOTED-PRINTABLE;CHARSET=NOPE:=ZZ=C3\nTEL:0123\nEND:VCARD\n"
+        self.assertEqual(contacts(text)[0]["numbers"][0]["number"], "0123")
 
     def test_large_phonebook_is_fast(self):
         card = "BEGIN:VCARD\nVERSION:3.0\nFN:Person {i}\nTEL;TYPE=CELL:+6012{i:07d}\nEND:VCARD\n"

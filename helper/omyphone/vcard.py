@@ -1,10 +1,13 @@
 """Parse the vCard text that phones send over PBAP (Phone Book Access Profile).
 
-We ask for vCard 3.0, but Android phones may still send 2.1, so the parser is
-lenient: it never raises, skips what it does not understand, and keeps only
-names, numbers, labels and call times. Photos and emails are dropped.
+We ask for vCard 3.0, but Android phones may still send 2.1 (with
+quoted-printable names), so the parser is lenient: it never raises, skips what
+it does not understand, and keeps only names, numbers, labels and call times.
+Photos and emails are dropped.
 """
 import calendar
+import codecs
+import quopri
 import re
 import time
 
@@ -28,16 +31,52 @@ def _params(parts):
     return words
 
 
+def _quoted_printable(head):
+    return "QUOTED-PRINTABLE" in head.upper()
+
+
+def _logical_lines(text):
+    """Join folded lines: a line starting with a space or tab continues the one
+    before, and so does any line after a quoted-printable line ending in "="."""
+    lines = []
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        last = lines[-1] if lines else None
+        if last is not None and last.endswith("=") and ":" in last and _quoted_printable(last.split(":", 1)[0]):
+            lines[-1] = last[:-1] + line  # soft line break: the next line is all value
+        elif last is not None and line[:1] in (" ", "\t"):
+            lines[-1] = last + line[1:]
+        else:
+            lines.append(line)
+    return lines
+
+
+def _charset(parts):
+    for part in parts:
+        key, _, value = part.partition("=")
+        if key.strip().upper() == "CHARSET" and value.strip():
+            try:
+                return codecs.lookup(value.strip()).name
+            except LookupError:
+                break
+    return "utf-8"
+
+
+def _decode(parts, value):
+    """The value of a vCard 2.1 quoted-printable property as text; others as they are."""
+    if not any(_quoted_printable(part) for part in parts):
+        return value
+    return quopri.decodestring(value.encode("utf-8", "replace")).decode(_charset(parts), "replace")
+
+
 def parse_cards(text):
     """Split vCard text into cards. Each card is a list of (NAME, param words, raw value)."""
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"\n[ \t]", "", text)  # unfold continuation lines
     cards, current = [], None
-    for line in text.split("\n"):
+    for line in _logical_lines(text):
         if ":" not in line:
             continue
         head, value = line.split(":", 1)
         parts = head.split(";")
+        value = _decode(parts[1:], value)
         name = parts[0].rsplit(".", 1)[-1].strip().upper()  # "item1.TEL" -> "TEL"
         if name == "BEGIN" and value.strip().upper() == "VCARD":
             current = []
@@ -73,7 +112,8 @@ def _label(params):
 
 
 def contacts_from_cards(cards):
-    """Contacts with at least one number: {"name", "numbers": [{"number", "label"}]}."""
+    """Contacts with at least one number: {"name", "numbers": [{"number", "label"}]}.
+    The name is empty when the card has none (no FN, N or ORG)."""
     result = []
     for card in cards:
         numbers = []
@@ -82,7 +122,7 @@ def contacts_from_cards(cards):
             if name == "TEL" and number:
                 numbers.append({"number": number, "label": _label(params)})
         if numbers:
-            result.append({"name": _name(card) or numbers[0]["number"], "numbers": numbers})
+            result.append({"name": _name(card), "numbers": numbers})
     return result
 
 

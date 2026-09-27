@@ -47,6 +47,10 @@ class DirectoryTests(unittest.TestCase):
                       [contact("Aminah", home), contact("zaki", home)]):
             self.assertEqual(Directory(order).lookup("0323456789"), "Aminah")
 
+    def test_nameless_contact_does_not_hide_a_named_one(self):
+        home = "+60 3-2345 6789"
+        self.assertEqual(Directory([contact("", home), contact("Aminah", home)]).lookup(home), "Aminah")
+
     def test_large_directory_is_fast(self):
         directory = Directory([contact(f"P{i}", f"+6012{i:07d}") for i in range(2000)])
         started = time.monotonic()
@@ -60,6 +64,10 @@ class RowsTests(unittest.TestCase):
         result = rows([contact("siti", "1", "2"), contact("Ali", "3")])
         self.assertEqual([(r["name"], r["number"]) for r in result], [("Ali", "3"), ("siti", "1"), ("siti", "2")])
         self.assertEqual(set(result[0]), {"name", "number", "label"})
+
+    def test_nameless_contacts_come_last(self):
+        result = rows([contact("", "9"), contact("zaki", "1"), contact("Ali", "3")])
+        self.assertEqual([r["name"] for r in result], ["Ali", "zaki", ""])
 
 
 class StoreTests(unittest.TestCase):
