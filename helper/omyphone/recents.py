@@ -4,8 +4,11 @@ import os
 import sys
 from pathlib import Path
 
+from .contacts import numbers_match
+
 LIMIT = 100
 DIRECTIONS = ("incoming", "outgoing", "missed")
+MATCH_WINDOW_S = 120
 
 
 def default_path():
@@ -43,3 +46,19 @@ class Recents:
             os.replace(tmp, self.path)
         except OSError as error:
             print(f"omyphone: could not save recents: {error}", file=sys.stderr)
+
+
+def merge(local, phone):
+    """What Recent (or Missed) shows. With phone history: the phone's list, plus
+    local entries it does not have yet (a call that just ended, before the
+    history sync lands). Without it: the local log."""
+    if phone is None:
+        return list(local[:LIMIT])
+    newest = max((e["start"] for e in phone), default=0)
+
+    def known(entry):
+        return any(numbers_match(p["number"], entry["number"])
+                   and abs(p["start"] - entry["start"]) <= MATCH_WINDOW_S for p in phone)
+
+    fresh = [e for e in local if e["start"] > newest and not known(e)]
+    return (fresh + list(phone))[:LIMIT]
