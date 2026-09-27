@@ -42,9 +42,17 @@ def main(argv=None):
         except BrokenPipeError:
             loop.quit()
 
+    def seconds(name, default):
+        return float(os.environ.get(name, default))
+
+    contacts_timing = {"retry_s": seconds("OMYPHONE_CONTACTS_RETRY_SECONDS", 5),
+                       "retry_window_s": seconds("OMYPHONE_CONTACTS_RETRY_WINDOW_SECONDS", 180),
+                       "install_check_s": seconds("OMYPHONE_INSTALL_CHECK_SECONDS", 3),
+                       "history_delay_s": seconds("OMYPHONE_HISTORY_DELAY_SECONDS", 3)}
     engine = Engine(emit, session, bluez_bus, default_path(), address=args.phone or None,
-                    poll_s=float(os.environ.get("OMYPHONE_POLL_SECONDS", "5")),
-                    retry_s=float(os.environ.get("OMYPHONE_RETRY_SECONDS", "30")))
+                    poll_s=seconds("OMYPHONE_POLL_SECONDS", 5),
+                    retry_s=seconds("OMYPHONE_RETRY_SECONDS", 30),
+                    contacts_timing=contacts_timing)
     engine.start()
 
     stdin = Gio.DataInputStream.new(UnixInputStream.new(0, False))

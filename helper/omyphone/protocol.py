@@ -50,6 +50,8 @@ def parse_command(line):
         if not isinstance(on, bool):
             raise ProtocolError(cmd, "invalid mute value")
         return {"cmd": cmd, "on": on}
+    if cmd in ("sync-contacts", "install-contacts"):
+        return {"cmd": cmd}
     raise ProtocolError(cmd, "unknown command")
 
 

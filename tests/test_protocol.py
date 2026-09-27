@@ -48,6 +48,10 @@ class ParseCommandTests(unittest.TestCase):
         self.assertRejected("[1,2]", "", "missing cmd")
         self.assertRejected('{"cmd":"reboot"}', "reboot", "unknown command")
 
+    def test_contacts_commands(self):
+        for cmd in ("sync-contacts", "install-contacts"):
+            self.assertEqual(parse_command(json.dumps({"cmd": cmd})), {"cmd": cmd})
+
 
 class EncodeEventTests(unittest.TestCase):
     def test_single_compact_line(self):

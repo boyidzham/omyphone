@@ -16,9 +16,9 @@ class Notifier:
         self._on_show = on_show
         self._waiting = set()  # notify-send processes still waiting for a click
 
-    def missed(self, number):
+    def missed(self, number, name=""):
         argv = ["notify-send", "-a", "omyphone", "-A", "default=Show missed calls",
-                "Missed call", number or "Unknown number"]
+                "Missed call", name or number or "Unknown number"]
         try:
             proc = Gio.Subprocess.new(argv, Gio.SubprocessFlags.STDOUT_PIPE)
         except GLib.Error as error:
