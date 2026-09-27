@@ -148,9 +148,11 @@ Item {
 
   Process {
     id: helper
+    // -B: no __pycache__ in the plugin folder, whose changes make the shell
+    // reload the plugin (and so restart this helper).
     command: root.phoneAddress !== ""
-      ? ["python3", root.helperPath, "--phone", root.phoneAddress]
-      : ["python3", root.helperPath]
+      ? ["python3", "-B", root.helperPath, "--phone", root.phoneAddress]
+      : ["python3", "-B", root.helperPath]
     running: true
     stdinEnabled: true
     stdout: SplitParser { onRead: function(line) { root.handleLine(line) } }
