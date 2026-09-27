@@ -50,11 +50,21 @@ never touch the real desktop bus.
 
 ## Development loop
 
-1. Install once: `omarchy plugin add ~/Projects/omyphone --enable` (a git clone of
-   the local repo into `~/.config/omarchy/plugins/omyphone`).
+1. Install once: `omarchy plugin add ~/Projects/omyphone --enable --yes` (a git
+   clone of the local repo into `~/.config/omarchy/plugins/omyphone`). A bare local
+   path works. `--yes` is needed when there is no terminal to confirm in. It may
+   print "omarchy-shell is not responding" while the shell reloads; the plugin is
+   still added and enabled (check `omarchy plugin list`).
 2. Edit here, run `tests/run.sh`, then `scripts/dev-sync.sh`. The shell reloads
    the plugin.
 3. For a clean install: `omarchy plugin remove omyphone`, then add it again.
+4. Open or close the popup from a script: `omarchy-shell omyphone open` / `close`
+   (it opens on one monitor). QML `console.log` does not reach the journal; use
+   `console.warn` for temporary debugging (`journalctl --user | grep omarchy-shell`).
+
+Quirks seen on install (2026-09-28): with 3 monitors the shell logs "IpcHandler ...
+another handler is registered for target omyphone". Built-in panels log the same,
+so it is harmless. With Num Lock off, numpad keys act as arrows, as in any app.
 
 ## Machine facts (2026-09-27)
 
