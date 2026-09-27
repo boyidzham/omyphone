@@ -72,7 +72,7 @@ so it is harmless. With Num Lock off, numpad keys act as arrows, as in any app.
 
 - Omarchy 4.0.4, quickshell 0.3.1, PipeWire 1.6.8, WirePlumber 0.5.17, BlueZ 5.87,
   Python 3.14, notify-send 0.8.8.
-- Test phone: iPhone 13, "Test iPhone", `AA:BB:CC:DD:EE:FF`. Headset: Logitech
+- Test phone: iPhone 13 (its name and Bluetooth address are kept out of the repo). Headset: Logitech
   G733 (USB).
 - Phone status: `busctl --user call org.pipewire.Telephony /org/pipewire/Telephony org.ofono.Manager GetModems`
   (`busctl tree` does not show `ag1`).
