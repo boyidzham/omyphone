@@ -60,8 +60,9 @@ never touch the real desktop bus.
    shell, because a plugin rescan reloads the service but keeps the old bar
    widget code (seen 2026-09-28).
 3. For a clean install: `omarchy plugin remove omyphone`, then add it again.
-4. Open or close the popup from a script: `omarchy-shell omyphone open` / `close`
-   (it opens on one monitor). QML `console.log` does not reach the journal; use
+4. Open or close the popup from a script: `omarchy-shell shell toggle omyphone` (on
+   the focused monitor). `omarchy-shell omyphone open` / `close` use one fixed monitor,
+   not always the focused one. QML `console.log` does not reach the journal; use
    `console.warn` for temporary debugging. The shell's log is
    `/run/user/1000/quickshell/by-id/<id>/log.log` (`qs list --all` gives the id).
 

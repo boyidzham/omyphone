@@ -70,6 +70,19 @@ omarchy bar set omyphone callScreen DP-1
 | `phoneAddress` | The Bluetooth address of the phone to use, for example `AA:BB:CC:DD:EE:FF`. Only needed if you have more than one phone paired. Empty means "the first paired phone". |
 | `callScreen` | The monitor for the incoming call card, for example `DP-1` (see `hyprctl monitors`). Empty means "the monitor you are using". |
 
+## Keyboard shortcut
+
+OMyPhone does not add a shortcut by itself, so it never changes your config. To open
+and close the popup with a key, add this line to `~/.config/hypr/bindings.lua`:
+
+```lua
+o.bind("SUPER + ALT + P", "Phone", "omarchy-shell shell toggle omyphone")
+```
+
+It works as soon as you save the file, and the popup opens on the monitor you are
+using. `SUPER + ALT + P` is free in a default Omarchy; pick another key if you use it
+already (`omarchy menu keybindings --print` lists them).
+
 ## Contacts
 
 Contacts are optional and stay off until you turn them on:
