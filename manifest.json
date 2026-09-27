@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "omyphone",
+  "name": "omyphone",
+  "version": "0.1.0",
+  "author": "Boyidzham",
+  "license": "MIT",
+  "description": "Make and take phone calls from the desktop through your Bluetooth-paired phone",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Phone",
+    "description": "Dialer, recent calls and call controls for your Bluetooth phone",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "schema": [
+      {
+        "key": "phoneAddress",
+        "type": "string",
+        "label": "Phone Bluetooth address (leave empty to detect automatically)"
+      }
+    ]
+  }
+}

@@ -10,4 +10,6 @@ if [ "$modules" = 1 ]; then
   OMYPHONE_TEST_BUS=1 dbus-run-session -- python3 -m unittest "$@"
 else
   OMYPHONE_TEST_BUS=1 dbus-run-session -- python3 -m unittest discover -s tests -t . "$@"
+  python3 tests/qml_lint.py
+  omarchy plugin validate .
 fi
