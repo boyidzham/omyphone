@@ -105,10 +105,6 @@ helper inside the plugin talks to it and to BlueZ, keeps your recent calls, and 
 mute and notifications. The bar widget only shows what the helper reports. The design
 notes are in [`docs/`](docs/).
 
-## Coming next
-
-- **Contacts.** See who is calling, and call people by name instead of by number.
-
 ## Development
 
 ```sh

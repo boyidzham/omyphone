@@ -13,8 +13,8 @@ Read these first:
 
 - `helper/`: Python helper (stdlib + PyGObject only). **All logic lives here**:
   D-Bus to `org.pipewire.Telephony` (session bus) and `org.bluez` (system bus),
-  recents, mute and notifications, contacts over PBAP (`org.bluez.obex`). It speaks JSON lines: commands on stdin, events
-  on stdout.
+  recents, mute and notifications, contacts over PBAP (`org.bluez.obex`). It
+  speaks JSON lines: commands on stdin, events on stdout.
 - `Service.qml`: the plugin's `service` kind. It runs the helper and holds its
   state.
 - `BarWidget.qml` and `*View.qml`: a thin UI, `qs.Ui` `Panel` + `KeyboardPanel`.
