@@ -105,7 +105,7 @@ pressed by the owner.
 | 2 | Incoming call answered | Pass, after a redesign (see below). Answered from the card and from the popup |
 | 3 | Incoming call declined | Pass |
 | 4 | Missed call | Pass. Shown as missed; the notification click opens the Missed tab |
-| 5 | Incoming call answered on the phone | Not re-run after the card change |
+| 5 | Incoming call answered on the phone | Pass. The card on the desktop closed by itself |
 | 6 | DTMF during a call | Not tested (no IVR number to hand) |
 | 7 | Mute and unmute | Pass. The other side could not hear while muted, so the `wpctl` default-source approach works |
 | 8 | Phone off and on, auto-reconnect | Pass. Reconnects by itself after a short wait |
@@ -129,8 +129,6 @@ Surprises and changes made:
 ## Not yet tested
 
 - DTMF (`SendTones`) during a call.
-- An incoming call answered on the phone while the card is showing (the card
-  should close by itself).
 - Contacts and call history over PBAP. Needs `obexd`, which is in the `bluez-obex`
   package (not installed on the test machine). On iPhone, "Sync Contacts" must be on
   in the Bluetooth settings for the PC. Whether iPhone exposes call history over PBAP
