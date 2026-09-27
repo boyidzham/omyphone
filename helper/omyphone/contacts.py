@@ -116,9 +116,15 @@ class ContactsStore:
         self.enabled = data.get("enabled") is True
         self.synced = _int(data.get("synced"))
         self.contacts = _list(data, "contacts", _valid_contact)
+        # How the last pull of the phonebook went: "ready", "needs-permission" or
+        # "error" (with its message), so a restart shows the same thing again.
+        last = data.get("last")
+        valid = isinstance(last, dict) and isinstance(last.get("state"), str) and isinstance(last.get("message"), str)
+        self.last = {"state": last["state"], "message": last["message"]} if valid else {"state": "", "message": ""}
 
     def save(self):
-        _save(self.path, {"enabled": self.enabled, "synced": self.synced, "contacts": self.contacts})
+        _save(self.path, {"enabled": self.enabled, "synced": self.synced, "contacts": self.contacts,
+                          "last": self.last})
 
 
 class HistoryStore:

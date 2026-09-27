@@ -2,7 +2,8 @@
 
 Serves tests/fixtures/<folder>.vcf over a PBAP-shaped API, with CRLF line ends
 like a real phone. Control interface org.omyphone.Test at /org/omyphone/Test:
-SetMode(normal | empty | error | refuse | vanish) and Log().
+SetMode(normal | empty | error | refuse | vanish | fail-<folder>) and Log().
+fail-<folder> makes PullAll fail for that folder only.
 """
 import warnings
 from pathlib import Path
@@ -78,7 +79,7 @@ class FakeObex:
         elif method == "PullAll":
             folder = self.sessions[path]["folder"]
             self.log.append(f"PullAll {folder} {args[1].get('Format', '')}")
-            if self.mode == "error":
+            if self.mode in ("error", f"fail-{folder}"):
                 invocation.return_dbus_error("org.bluez.obex.Error.Failed", "Transfer failed")
                 return
             fixture = FIXTURES / f"{folder}.vcf"

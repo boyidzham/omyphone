@@ -7,7 +7,10 @@ sharing is not allowed on it yet), ready, error.
 Opt-in: nothing is pulled until the user asks once (user_sync or install).
 After that, every connect pulls everything and every ended call pulls the
 history. The phone only offers its "Sync Contacts" switch after a PC has asked
-once, so an empty pull after a user click is retried for a while.
+once, so an empty pull after a user click is retried for a while. A pull that
+fails right after a connect (the phone may not be ready for it yet) is retried
+a couple of times. The phonebook and the history are taken separately: one
+failing never throws the other away.
 """
 import sys
 import time
@@ -19,6 +22,7 @@ from . import vcard
 INSTALL_ARGV = ["omarchy-launch-floating-terminal-with-presentation", "omarchy-pkg-add", "bluez-obex"]
 FULL = ("pb", "cch", "mch")
 HISTORY = ("cch", "mch")
+CONNECT_RETRIES = 2
 
 
 def glib_schedule(seconds, fn):
@@ -58,10 +62,19 @@ class ContactsSync:
         self._retry_scheduled = False
         self._install_until = 0.0
         self._install_polling = False
+        self._connect_retries = 0
 
     def start(self):
-        initial = "off" if not self.contacts.enabled else "ready" if self.contacts.synced else "needs-permission"
-        self._phonebook.available(lambda ok: self._set(initial if ok else "needs-install"))
+        last = self.contacts.last
+        if not self.contacts.enabled:
+            initial = ("off", "")
+        elif self.contacts.synced:
+            initial = ("ready", "")
+        elif last["state"] == "error":
+            initial = ("error", last["message"])
+        else:
+            initial = ("needs-permission", "")
+        self._phonebook.available(lambda ok: self._set(*initial) if ok else self._set("needs-install"))
 
     def status(self):
         return {"state": self.state, "enabled": self.contacts.enabled,
@@ -82,6 +95,7 @@ class ContactsSync:
 
     def connected(self):
         if self.contacts.enabled:
+            self._connect_retries = CONNECT_RETRIES
             self._request("full")
 
     def call_ended(self):
@@ -135,41 +149,63 @@ class ContactsSync:
         if kind == "full" and self.state != "needs-permission":
             self._set("syncing")
         self._phonebook.pull(address, FULL if kind == "full" else HISTORY,
-                             lambda texts: self._done(kind, texts), self._failed)
+                             lambda texts, errors: self._done(kind, texts, errors))
 
-    def _done(self, kind, texts):
+    def _done(self, kind, texts, errors):
         self._busy = False
         now = int(self._wallclock())
         if kind == "full":
-            cards = vcard.parse_cards(texts.get("pb", ""))
-            if not cards:
-                self._set("needs-permission")
-                if self._clock() < self._retry_until and not self._retry_scheduled:
-                    self._retry_scheduled = True
-                    self._schedule(self._retry_s, self._run_retry)
+            if "pb" in texts:
+                self._take_contacts(texts["pb"], now)
             else:
-                # The first card is the phone owner's own card (PBAP handle 0).
-                self.contacts.contacts = vcard.contacts_from_cards(cards[1:])
-                self.contacts.synced = now
-                self.contacts.save()
-                self._retry_until = 0.0
-                self._retry_scheduled = False
-                self._listener.contacts_changed()
-                self._set("ready")
-        calls = vcard.history_from_cards(vcard.parse_cards(texts.get("cch", "")))
+                self._phonebook_failed(errors.get("pb", "Sync failed"))
+        if "cch" in texts and "mch" in texts:
+            self._take_history(texts["cch"], texts["mch"], now)
+        else:
+            message = errors.get("cch") or errors.get("mch")
+            print(f"omyphone: call history sync failed: {message}", file=sys.stderr)
+        self._run_pending()
+
+    def _take_contacts(self, text, now):
+        cards = vcard.parse_cards(text)
+        self._connect_retries = 0
+        if not cards:
+            self._remember("needs-permission")
+            self._set("needs-permission")
+            if self._clock() < self._retry_until and not self._retry_scheduled:
+                self._retry_scheduled = True
+                self._schedule(self._retry_s, self._run_retry)
+            return
+        # The first card is the phone owner's own card (PBAP handle 0).
+        self.contacts.contacts = vcard.contacts_from_cards(cards[1:])
+        self.contacts.synced = now
+        self._remember("ready")
+        self._retry_until = 0.0
+        self._retry_scheduled = False
+        self._listener.contacts_changed()
+        self._set("ready")
+
+    def _phonebook_failed(self, message):
+        print(f"omyphone: contacts sync failed: {message}", file=sys.stderr)
+        self._remember("error", message)
+        self._set("error", message)
+        if self._connect_retries > 0:
+            self._connect_retries -= 1
+            self._schedule(self._retry_s, lambda: self._request("full"))
+
+    def _take_history(self, cch, mch, now):
+        calls = vcard.history_from_cards(vcard.parse_cards(cch))
         if calls:
             self.history.calls = calls
-            self.history.missed = vcard.history_from_cards(vcard.parse_cards(texts.get("mch", "")), "missed")
+            self.history.missed = vcard.history_from_cards(vcard.parse_cards(mch), "missed")
             self.history.synced = now
             self.history.save()
             self._listener.history_changed()
-        self._run_pending()
 
-    def _failed(self, message):
-        self._busy = False
-        print(f"omyphone: contacts sync failed: {message}", file=sys.stderr)
-        self._set("error", message)
-        self._run_pending()
+    def _remember(self, state, message=""):
+        """Save how this pull went (and the contacts with it), for the next start."""
+        self.contacts.last = {"state": state, "message": message}
+        self.contacts.save()
 
     def _run_retry(self):
         self._retry_scheduled = False

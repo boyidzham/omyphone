@@ -38,8 +38,7 @@ class PhonebookTests(unittest.TestCase):
 
     def pull(self, folders=("pb", "cch")):
         def start(callback):
-            self.book.pull("AA:BB:CC:DD:EE:FF", folders,
-                           lambda texts: callback("done", texts), lambda msg: callback("error", msg))
+            self.book.pull("AA:BB:CC:DD:EE:FF", folders, callback)
         return run(start)
 
     def test_not_available_without_obexd(self):
@@ -52,8 +51,8 @@ class PhonebookTests(unittest.TestCase):
 
     def test_pull_returns_each_folder(self):
         self.start_fake()
-        kind, texts = self.pull()
-        self.assertEqual(kind, "done")
+        texts, errors = self.pull()
+        self.assertEqual(errors, {})
         self.assertEqual(set(texts), {"pb", "cch"})
         self.assertIn("FN:Ali Ahmad", texts["pb"])
         self.assertIn("RemoveSession", self.fake.log())
@@ -67,34 +66,44 @@ class PhonebookTests(unittest.TestCase):
     def test_transfer_object_gone_counts_as_complete(self):
         self.start_fake()
         self.fake.control("SetMode", "(s)", ("vanish",))
-        kind, texts = self.pull(("pb",))
-        self.assertEqual(kind, "done")
+        texts, errors = self.pull(("pb",))
+        self.assertEqual(errors, {})
         self.assertIn("FN:Ali Ahmad", texts["pb"])
 
     def test_empty(self):
         self.start_fake()
         self.fake.control("SetMode", "(s)", ("empty",))
-        self.assertEqual(self.pull(("pb",)), ("done", {"pb": ""}))
+        self.assertEqual(self.pull(("pb",)), ({"pb": ""}, {}))
 
     def test_stale_file_is_not_read(self):
         self.start_fake()
         self.fake.control("SetMode", "(s)", ("empty",))
         self.tmpdir.mkdir(parents=True)
         (self.tmpdir / "pb.vcf").write_text("BEGIN:VCARD\nFN:Stale\nTEL:1\nEND:VCARD\n")
-        self.assertEqual(self.pull(("pb",)), ("done", {"pb": ""}))
+        self.assertEqual(self.pull(("pb",)), ({"pb": ""}, {}))
 
     def test_refused_session(self):
         self.start_fake()
         self.fake.control("SetMode", "(s)", ("refuse",))
-        self.assertEqual(self.pull(), ("error", "Unable to connect"))
+        self.assertEqual(self.pull(), ({}, {"pb": "Unable to connect", "cch": "Unable to connect"}))
 
     def test_transfer_error_removes_session(self):
         self.start_fake()
         self.fake.control("SetMode", "(s)", ("error",))
-        self.assertEqual(self.pull(), ("error", "Transfer failed"))
+        self.assertEqual(self.pull(), ({}, {"pb": "Transfer failed", "cch": "Transfer failed"}))
         self.assertIn("RemoveSession", self.fake.log())
 
+    def test_one_failed_folder_keeps_the_others(self):
+        self.start_fake()
+        self.fake.control("SetMode", "(s)", ("fail-cch",))
+        texts, errors = self.pull(("pb", "cch", "mch"))
+        self.assertEqual(errors, {"cch": "Transfer failed"})
+        self.assertEqual(set(texts), {"pb", "mch"})
+        self.assertIn("FN:Ali Ahmad", texts["pb"])
+        self.assertEqual(self.fake.log().count("RemoveSession"), 1)
+
     def test_no_obexd_is_an_error_not_a_hang(self):
-        kind, message = self.pull()
-        self.assertEqual(kind, "error")
-        self.assertTrue(message)
+        texts, errors = self.pull()
+        self.assertEqual(texts, {})
+        self.assertEqual(set(errors), {"pb", "cch"})
+        self.assertTrue(errors["pb"])

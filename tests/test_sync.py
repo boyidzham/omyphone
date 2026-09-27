@@ -15,7 +15,7 @@ EMPTY = {"pb": "", "cch": "", "mch": ""}
 class FakeBook:
     def __init__(self):
         self.ok = True
-        self.results = []      # dicts (success) or strings (error), used in order
+        self.results = []      # used in order: texts dicts, (texts, errors), or a string (every folder failed)
         self.pulls = []
         self.defer = False
         self.waiting = []
@@ -23,19 +23,21 @@ class FakeBook:
     def available(self, callback):
         callback(self.ok)
 
-    def pull(self, address, folders, on_done, on_error):
+    def pull(self, address, folders, on_done):
         self.pulls.append((address, tuple(folders)))
         if self.defer:
-            self.waiting.append((on_done, on_error))
+            self.waiting.append((folders, on_done))
             return
-        self.finish(on_done, on_error)
+        self.finish(folders, on_done)
 
-    def finish(self, on_done, on_error):
+    def finish(self, folders, on_done):
         result = self.results.pop(0) if self.results else EMPTY
         if isinstance(result, str):
-            on_error(result)
+            on_done({}, {folder: result for folder in folders})
+        elif isinstance(result, tuple):
+            on_done(*result)
         else:
-            on_done(result)
+            on_done({folder: result[folder] for folder in folders}, {})
 
     def release(self):
         self.defer = False
@@ -174,6 +176,62 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(self.listener.statuses[-1]["message"], "Unable to connect")
         self.assertEqual(self.state, "error")
         self.assertEqual(self.sync.contacts.contacts, cached)
+
+    def test_history_failure_keeps_a_good_phonebook(self):
+        self.book.results = [({"pb": FULL["pb"]}, {"cch": "Forbidden", "mch": "Forbidden"})]
+        self.make().user_sync()
+        self.assertEqual(self.state, "ready")
+        self.assertIn("Ali Ahmad", [c["name"] for c in ContactsStore(self.dir / "contacts.json").contacts])
+        self.assertEqual((self.listener.contacts, self.listener.history), (1, 0))
+
+    def test_phonebook_failure_still_takes_the_history(self):
+        self.book.results = [({"cch": FULL["cch"], "mch": FULL["mch"]}, {"pb": "Forbidden"})]
+        self.make().user_sync()
+        self.assertEqual((self.state, self.listener.statuses[-1]["message"]), ("error", "Forbidden"))
+        self.assertEqual(len(HistoryStore(self.dir / "history.json").calls), 3)
+
+    def test_half_a_history_is_not_saved(self):
+        self.book.results = [FULL, ({"pb": FULL["pb"], "cch": FULL["cch"]}, {"mch": "Forbidden"})]
+        self.make().user_sync()
+        self.sync.user_sync()
+        self.assertEqual(len(self.sync.history.missed), 2)  # the first sync's list is kept
+        self.assertEqual(self.listener.history, 1)
+
+    def test_last_error_is_shown_after_a_restart(self):
+        self.book.results = ["Unable to connect"]
+        self.make().user_sync()
+        self.make()
+        self.assertEqual((self.state, self.listener.statuses[-1]["message"]), ("error", "Unable to connect"))
+
+    def test_needs_permission_is_shown_after_a_restart(self):
+        self.book.results = ["Unable to connect", EMPTY]
+        self.make().user_sync()
+        self.sync.user_sync()
+        self.make()
+        self.assertEqual((self.state, self.listener.statuses[-1]["message"]), ("needs-permission", ""))
+
+    def test_ready_after_a_restart_even_if_the_last_sync_failed(self):
+        self.book.results = [FULL, "Unable to connect"]
+        self.make().user_sync()
+        self.sync.user_sync()
+        self.make()
+        self.assertEqual(self.state, "ready")
+
+    def test_failed_sync_after_connect_is_retried(self):
+        self.book.results = ["Unable to connect", FULL]
+        self.make(enabled=True).connected()
+        self.assertEqual(self.state, "error")
+        self.assertEqual(self.scheduled[0][0], 5.0)
+        self.run_scheduled()
+        self.assertEqual(self.state, "ready")
+
+    def test_connect_retries_are_limited(self):
+        self.book.results = ["Unable to connect"] * 10
+        self.make(enabled=True).connected()
+        for _ in range(10):
+            self.run_scheduled()
+        self.assertEqual(len(self.book.pulls), 3)
+        self.assertEqual(self.state, "error")
 
     def test_user_sync_while_not_connected(self):
         self.address = None
