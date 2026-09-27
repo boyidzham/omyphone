@@ -21,6 +21,9 @@ Item {
   property real activeSince: 0
   property bool muted: false
   property var recents: []
+  property var missed: []
+  property var contacts: []
+  property var contactsStatus: ({ state: "off", enabled: false, synced: 0, message: "" })
   property string lastError: ""
   property var restartTimes: []
 
@@ -83,6 +86,8 @@ Item {
   function hangup(path) { send({ cmd: "hangup", call: path }) }
   function sendTones(digits) { send({ cmd: "tones", digits: digits }) }
   function setMuted(on) { send({ cmd: "mute", on: on }) }
+  function syncContacts() { send({ cmd: "sync-contacts" }) }
+  function installContacts() { send({ cmd: "install-contacts" }) }
 
   function handleLine(line) {
     var msg
@@ -97,7 +102,9 @@ Item {
     case "call": upsertCall(msg); break
     case "call-removed": removeCall(msg.path); break
     case "muted": muted = msg.muted; break
-    case "recents": recents = msg.entries; break
+    case "recents": recents = msg.entries; missed = msg.missed || []; break
+    case "contacts": contacts = msg.entries; break
+    case "contacts-status": contactsStatus = msg; break
     case "error": showError(msg.message); break
     case "show": showPopup(msg.tab); break
     }
@@ -106,7 +113,7 @@ Item {
   function upsertCall(msg) {
     var next = calls.filter(function(c) { return c.path !== msg.path })
     var index = calls.findIndex(function(c) { return c.path === msg.path })
-    var call = { path: msg.path, number: msg.number, state: msg.state }
+    var call = { path: msg.path, number: msg.number, state: msg.state, name: msg.name || "" }
     if (index < 0) next.push(call)
     else next.splice(index, 0, call)
     calls = next

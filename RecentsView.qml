@@ -9,9 +9,7 @@ Column {
   property var phone: null
   property real now: Date.now()
   property bool missedOnly: false
-  readonly property var entries: phone
-    ? phone.recents.filter(function(e) { return !missedOnly || e.direction === "missed" }).slice(0, 10)
-    : []
+  readonly property var entries: phone ? (missedOnly ? phone.missed : phone.recents).slice(0, 10) : []
 
   spacing: Style.space(2)
 
@@ -61,15 +59,21 @@ Column {
         anchors.left: icon.right
         anchors.leftMargin: Style.space(10)
         anchors.verticalCenter: parent.verticalCenter
+        width: row.width - icon.width - Style.space(26)
 
         Text {
-          text: Format.displayNumber(row.modelData.number)
+          width: parent.width
+          elide: Text.ElideRight
+          text: Format.title(row.modelData)
           color: row.missed ? Color.urgent : Color.foreground
           font.family: Style.font.family
           font.pixelSize: Style.font.body
         }
         Text {
-          text: Format.recentDetail(row.modelData, root.now)
+          width: parent.width
+          elide: Text.ElideRight
+          text: (row.modelData.name ? Format.displayNumber(row.modelData.number) + " · " : "")
+            + Format.recentDetail(row.modelData, root.now)
           color: row.missed ? Color.urgent : Color.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption

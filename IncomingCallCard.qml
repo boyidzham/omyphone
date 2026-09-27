@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
+import "Format.js" as Format
 
 // Incoming-call card with Answer and Decline, in the top-right corner where
 // Omarchy's notifications appear. Omarchy's notifications cannot show buttons,
@@ -67,11 +68,21 @@ PanelWindow {
 
       Text {
         Layout.fillWidth: true
-        text: root.call && root.call.number ? root.call.number : "Unknown number"
+        text: Format.title(root.call)
         elide: Text.ElideRight
         color: Qt.darker(Color.notifications.text, 1.15)
         font.family: "Liberation Sans"
         font.pixelSize: Style.font.title
+      }
+
+      Text {
+        Layout.fillWidth: true
+        visible: root.call !== null && root.call.name !== ""
+        text: root.call ? Format.displayNumber(root.call.number) : ""
+        elide: Text.ElideRight
+        color: Qt.darker(Color.notifications.text, 1.4)
+        font.family: "Liberation Sans"
+        font.pixelSize: Style.font.body
       }
 
       RowLayout {

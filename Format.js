@@ -50,3 +50,38 @@ function callStatus(state, activeSince, nowMs) {
 function displayNumber(number) {
   return number && number !== "" ? number : "Unknown number"
 }
+
+// Title for a call or a recent entry: the contact name, else the number.
+function title(entry) {
+  return entry && entry.name ? entry.name : displayNumber(entry ? entry.number : "")
+}
+
+// Contacts search: every word of the query appears in the name, or the query's
+// digits appear in the number's digits.
+function matchesContact(row, query) {
+  var q = query.trim().toLowerCase()
+  if (q === "") return true
+  var name = row.name.toLowerCase()
+  if (q.split(/\s+/).every(function(word) { return name.indexOf(word) >= 0 })) return true
+  var digits = q.replace(/\D/g, "")
+  return digits !== "" && row.number.replace(/\D/g, "").indexOf(digits) >= 0
+}
+
+function syncedText(epochSeconds, nowMs) {
+  return epochSeconds > 0 ? "Synced " + relativeTime(epochSeconds, nowMs) : ""
+}
+
+function contactsSetupText(status) {
+  switch (status.state) {
+  case "needs-install": return "Needs the bluez-obex package. A terminal will ask for your password."
+  case "syncing": return "Syncing…"
+  case "needs-permission": return "On your phone, allow contact sharing. iPhone: Settings > Bluetooth > (i) next to this PC > Sync Contacts."
+  case "error": return status.message
+  case "ready": return "No contacts on the phone."
+  }
+  return "Show caller names and call people by name, using the contacts on your phone."
+}
+
+function contactsSetupButton(state) {
+  return state === "off" || state === "needs-install" ? "Sync contacts" : "Try again"
+}

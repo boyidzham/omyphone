@@ -22,10 +22,21 @@ Column {
     width: parent.width
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
-    text: root.call ? Format.displayNumber(root.call.number) : ""
+    text: root.call ? Format.title(root.call) : ""
     color: Color.foreground
     font.family: Style.font.family
     font.pixelSize: Style.font.title
+  }
+
+  Text {
+    visible: root.call !== null && root.call.name !== ""
+    width: parent.width
+    horizontalAlignment: Text.AlignHCenter
+    elide: Text.ElideRight
+    text: root.call ? Format.displayNumber(root.call.number) : ""
+    color: Color.muted
+    font.family: Style.font.family
+    font.pixelSize: Style.font.body
   }
 
   Text {
