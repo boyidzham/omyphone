@@ -73,13 +73,14 @@ Panel {
     owner: root
     bar: root.bar
     open: root.opened
-    focusTarget: keyCatcher
+    focusTarget: content.focusItem || keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(320))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      blocked: content.wantsKeys
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(text) { content.typeKey(text) }
@@ -92,6 +93,9 @@ Panel {
         anchors.right: parent.right
         phone: root.phone
         now: root.now
+        onCloseRequested: root.close()
+        onTabRequested: function(direction) { root.switchPanel(direction) }
+        onKeysReleased: keyCatcher.forceActiveFocus()
       }
     }
   }

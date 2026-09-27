@@ -2,7 +2,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// Popup body: not-connected notice, in-call controls, or Keypad/Recent tabs.
+// Popup body: not-connected notice, in-call controls, or Keypad/Recent/Missed/Contacts tabs.
 Column {
   id: root
 
@@ -11,15 +11,28 @@ Column {
   property string tab: "keypad"
   readonly property var call: phone ? phone.currentCall : null
   readonly property bool ready: phone ? phone.ready : false
+  readonly property bool onContacts: ready && call === null && tab === "contacts"
+  // The Contacts search field needs every key (the key catcher eats j/k/h/l/x).
+  readonly property bool wantsKeys: onContacts && contactsView.searchField.activeFocus
+  readonly property Item focusItem: onContacts && !contactsView.setup ? contactsView.searchField : null
+
+  signal closeRequested()
+  signal tabRequested(int direction)
+  signal keysReleased()
+
+  onWantsKeysChanged: if (!wantsKeys) keysReleased()
+  onOnContactsChanged: if (onContacts) Qt.callLater(contactsView.focusSearch)
 
   spacing: Style.space(12)
 
   function typeKey(text) {
     if (call) { if (inCall.showKeypad) inCall.keypad.typeKey(text); return }
     if (ready && tab === "keypad") keypad.typeKey(text)
+    if (onContacts) contactsView.typeKey(text)
   }
   function submit() {
     if (!call && ready && tab === "keypad") keypad.call()
+    else if (onContacts) contactsView.callSelected()
   }
 
   onCallChanged: if (call) keypad.number = ""
@@ -72,7 +85,7 @@ Column {
   ButtonGroup {
     visible: root.ready && root.call === null
     width: parent.width
-    options: [{ value: "keypad", label: "Keypad" }, { value: "recent", label: "Recent" }, { value: "missed", label: "Missed" }]
+    options: [{ value: "keypad", label: "Keypad" }, { value: "recent", label: "Recent" }, { value: "missed", label: "Missed" }, { value: "contacts", label: "Contacts" }]
     value: root.tab
     onChanged: function(value) { root.tab = value }
   }
@@ -97,6 +110,16 @@ Column {
     phone: root.phone
     now: root.now
     missedOnly: true
+  }
+
+  ContactsView {
+    id: contactsView
+    visible: root.onContacts
+    width: parent.width
+    phone: root.phone
+    now: root.now
+    onCloseRequested: root.closeRequested()
+    onTabRequested: function(direction) { root.tabRequested(direction) }
   }
 
   Text {
