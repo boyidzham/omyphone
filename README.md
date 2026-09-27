@@ -1,4 +1,4 @@
-# omyphone
+# OMyPhone
 
 Make and take phone calls from your Omarchy desktop through your Bluetooth-paired
 phone. Your PC becomes a hands-free unit for the phone, like a car kit: calls use
