@@ -4,7 +4,9 @@ import time
 import unittest
 from pathlib import Path
 
-from tests.harness import Fake, Helper, Stubs, needs_test_bus, wait_until
+from gi.repository import GLib
+
+from tests.harness import Fake, Helper, Stubs, bus, needs_test_bus, wait_until
 
 
 def is_event(name, **fields):
@@ -117,6 +119,22 @@ class HelperCallTests(unittest.TestCase):
         self.helper.wait_for(is_event("call-removed", path=second))
         self.assertFalse(self.helper.wait_for(is_event("muted"))["muted"])
         self.assertFalse((self.dir / "mic-muted").exists())
+
+    def test_signals_from_another_sender_are_ignored(self):
+        self.start_helper()
+        fake_call = "/org/pipewire/Telephony/ag1/call99"
+        props = {"LineIdentification": GLib.Variant("s", "666"), "State": GLib.Variant("s", "incoming")}
+        conn = bus()  # the test's own connection, not org.pipewire.Telephony
+        conn.emit_signal(None, "/org/pipewire/Telephony/ag1", "org.ofono.VoiceCallManager", "CallAdded",
+                         GLib.Variant("(oa{sv})", (fake_call, props)))
+        conn.emit_signal(None, "/org/pipewire/Telephony", "org.ofono.Manager", "ModemRemoved",
+                         GLib.Variant("(o)", ("/org/pipewire/Telephony/ag1",)))
+        conn.flush_sync(None)
+        (path,) = self.fake.control("AddCall", "(ss)", ("0123", "incoming"), "(o)")
+        first = self.helper.wait_for(lambda e: e.get("event") in ("call", "gateway"))
+        self.assertEqual((first["event"], first["path"]), ("call", path))
+        self.helper.send({"cmd": "tones", "digits": "1"})
+        wait_until(lambda: "SendTones 1" in self.fake.log())  # the gateway is still there
 
     def test_mute_without_call_is_an_error(self):
         self.start_helper()

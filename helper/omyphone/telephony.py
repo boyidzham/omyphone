@@ -30,6 +30,7 @@ class Telephony:
         self._listener = listener
         self.gateways = set()
         self.calls = {}
+        self._owner = None  # unique bus name of the running service
         handlers = {
             (MANAGER, "ModemAdded"): self._on_modem_added,
             (MANAGER, "ModemRemoved"): self._on_modem_removed,
@@ -38,17 +39,18 @@ class Telephony:
             (VOICE_CALL, "PropertyChanged"): self._on_property_changed,
         }
         for (iface, member), handler in handlers.items():
-            # sender=None: match on interface and path only, so the subscription
-            # keeps working when the service restarts with a new unique name.
+            # Subscribed with sender=None so it keeps working when the service
+            # restarts with a new unique name; on_signal then drops anything not
+            # sent by the service's current owner, so no other bus client can
+            # make up calls or remove the phone.
             bus.signal_subscribe(None, iface, member, None, None, Gio.DBusSignalFlags.NONE,
                                  self._signal_handler(handler))
         Gio.bus_watch_name_on_connection(bus, SERVICE, Gio.BusNameWatcherFlags.NONE,
                                          self._on_appeared, self._on_vanished)
 
-    @staticmethod
-    def _signal_handler(handler):
-        def on_signal(_conn, _sender, path, _iface, _member, params):
-            if path.startswith(MANAGER_PATH):
+    def _signal_handler(self, handler):
+        def on_signal(_conn, sender, path, _iface, _member, params):
+            if sender == self._owner and path.startswith(MANAGER_PATH):
                 handler(path, params.unpack())
         return on_signal
 
@@ -82,7 +84,8 @@ class Telephony:
                 on_error(remote_message(error))
         self._bus.call(SERVICE, path, iface, method, params, None, Gio.DBusCallFlags.NONE, 10000, None, done)
 
-    def _on_appeared(self, _bus, _name, _owner):
+    def _on_appeared(self, _bus, _name, owner):
+        self._owner = owner
         self._bus.call(SERVICE, MANAGER_PATH, MANAGER, "GetModems", None, None,
                        Gio.DBusCallFlags.NONE, 5000, None, self._on_modems)
 
@@ -110,6 +113,7 @@ class Telephony:
             self._update_call(path, props)
 
     def _on_vanished(self, _bus, _name):
+        self._owner = None
         for path in list(self.calls):
             self._drop_call(path, ended=False)
         for path in sorted(self.gateways):
