@@ -1,5 +1,4 @@
 """Connects telephony, recents, mic and notifications, and handles commands."""
-import json
 import time
 
 from .bluez import PhoneLink
@@ -23,7 +22,7 @@ class Engine:
         self.recents = Recents(recents_path)
         self.calllog = CallLog(time.time)
         self.mic = Mic()
-        self.notifier = Notifier(self._on_notification_action, session_bus)
+        self.notifier = Notifier()
         self.telephony = None
         self.link = None
 
@@ -34,7 +33,6 @@ class Engine:
         self.link = PhoneLink(self._bluez_bus, self, self._address, poll_s=self._poll_s, retry_s=self._retry_s)
 
     def stop(self):
-        self.notifier.close_all()
         self.mic.restore()
 
     # --- listener methods (Telephony, PhoneLink) ---
@@ -50,15 +48,10 @@ class Engine:
             self._emit("muted", muted=self.mic.refresh())
         self._tracked.add(path)
         self.calllog.update(path, number, state)
-        if state == "incoming":
-            self.notifier.incoming(path, number)
-        else:
-            self.notifier.close(path)
         self._emit("call", path=path, number=number, state=state)
 
     def call_removed(self, path, ended):
         self._tracked.discard(path)
-        self.notifier.close(path)
         entry = self.calllog.remove(path)
         self._emit("call-removed", path=path)
         if ended and entry is not None:
@@ -100,7 +93,3 @@ class Engine:
                 return
             self.mic.set_muted(cmd["on"])
             self._emit("muted", muted=self.mic.muted)
-
-    def _on_notification_action(self, path, action):
-        # Same path as the popup's buttons, so validation and errors are shared.
-        self.handle_line(json.dumps({"cmd": action, "call": path}))

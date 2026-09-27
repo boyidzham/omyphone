@@ -1,9 +1,10 @@
 """The real helper against the fake telephony service (no BlueZ fake running)."""
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
-from tests.harness import Fake, Helper, Stubs, needs_test_bus, pid_alive, wait_until
+from tests.harness import Fake, Helper, Stubs, needs_test_bus, wait_until
 
 
 def is_event(name, **fields):
@@ -54,25 +55,21 @@ class HelperCallTests(unittest.TestCase):
         self.assertEqual(self.last_recent()["direction"], "outgoing")
         self.assertTrue((self.dir / "state" / "omyphone" / "recents.json").exists())
 
-    def test_incoming_answered_from_notification(self):
+    def test_answer_command_from_card(self):
         self.start_helper()
         path = self.incoming("+60123")
-        note = self.stubs.wait_notification("Incoming call")
-        self.assertEqual(note[-1], "+60123")
-        self.assertIn("critical", note)
-        self.stubs.choose("answer")
+        self.helper.send({"cmd": "answer", "call": path})
         self.helper.wait_for(is_event("call", path=path, state="active"))
         self.assertIn(f"Answer {path}", self.fake.log())
 
-    def test_incoming_declined_from_notification(self):
+    def test_incoming_call_sends_no_notification(self):
+        # The shell shows its own card with Answer/Decline (Omarchy's
+        # notifications cannot show buttons), so the helper must not also
+        # send an Omarchy notification for a ringing call.
         self.start_helper()
-        path = self.incoming()
-        self.stubs.wait_notification("Incoming call")
-        self.stubs.choose("decline")
-        self.helper.wait_for(is_event("call-removed", path=path))
-        self.assertIn(f"Hangup {path}", self.fake.log())
-        recent = self.last_recent()
-        self.assertEqual((recent["number"], recent["direction"], recent["duration"]), ("0123", "incoming", 0))
+        self.incoming("0199")
+        time.sleep(0.5)  # a notify-send started while ringing would have logged by now
+        self.assertEqual(self.stubs.notifications(), [])
 
     def test_decline_command_from_popup(self):
         self.start_helper()
@@ -90,21 +87,6 @@ class HelperCallTests(unittest.TestCase):
         missed = self.stubs.wait_notification("Missed call")
         self.assertEqual(missed[:2], ["-a", "omyphone"])
         self.assertEqual(missed[-1], "0199")
-
-    def test_answered_on_phone_closes_notification(self):
-        self.start_helper()
-        path = self.incoming()
-        self.stubs.wait_notification("Incoming call")
-        pid = wait_until(lambda: self.stubs.notify_pids())[0]
-        self.fake.control("SetState", "(os)", (path, "active"))
-        self.helper.wait_for(is_event("call", path=path, state="active"))
-        wait_until(lambda: not pid_alive(pid), message="notification was not closed")
-        self.assertNotIn(f"Answer {path}", self.fake.log())
-
-    def test_incoming_without_number_says_unknown(self):
-        self.start_helper()
-        self.incoming("")
-        self.assertEqual(self.stubs.wait_notification("Incoming call")[-1], "Unknown number")
 
     def test_tones(self):
         self.start_helper()

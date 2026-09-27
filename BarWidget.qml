@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.Commons
 import qs.Ui
 import "Format.js" as Format
@@ -58,6 +59,12 @@ Panel {
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.caption
     }
+  }
+
+  IncomingCallCard {
+    service: root.phone
+    bar: root.bar
+    barScreen: button.QsWindow.window ? button.QsWindow.window.screen : null
   }
 
   KeyboardPanel {

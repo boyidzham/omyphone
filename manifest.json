@@ -22,6 +22,11 @@
         "key": "phoneAddress",
         "type": "string",
         "label": "Phone Bluetooth address (leave empty to detect automatically)"
+      },
+      {
+        "key": "callScreen",
+        "type": "string",
+        "label": "Monitor for the incoming-call card, e.g. DP-1 (leave empty for the focused monitor)"
       }
     ]
   }

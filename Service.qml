@@ -1,4 +1,6 @@
 import QtQuick
+import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 
 // omyphone background service: one instance, runs while the plugin is enabled.
@@ -11,6 +13,7 @@ Item {
 
   readonly property string helperPath: Qt.resolvedUrl("helper/omyphone-helper").toString().replace(/^file:\/\//, "")
   readonly property string phoneAddress: findSetting("phoneAddress", "")
+  readonly property string callScreen: findSetting("callScreen", "")
 
   property var phone: ({ found: false, address: "", name: "", connected: false, powered: false })
   property var gateways: []
@@ -27,6 +30,28 @@ Item {
       if (calls[i].state === "incoming") return calls[i]
     }
     return calls.length > 0 ? calls[0] : null
+  }
+  readonly property var ringingCall: {
+    for (var i = 0; i < calls.length; i++) {
+      if (calls[i].state === "incoming") return calls[i]
+    }
+    return null
+  }
+
+  // Monitor for the incoming-call card: the "callScreen" setting if that monitor
+  // is connected, otherwise the focused one. Picked when ringing starts and kept
+  // until it stops, so the card never jumps. The card itself lives in
+  // BarWidget.qml: windows need the shell's object tree, which third-party
+  // services are kept out of.
+  property string ringScreen: ""
+  onRingingCallChanged: ringScreen = ringingCall ? (ringScreen || pickRingScreen()) : ""
+
+  function pickRingScreen() {
+    var names = Quickshell.screens.map(function(s) { return s.name })
+    if (callScreen !== "" && names.indexOf(callScreen) >= 0) return callScreen
+    var focused = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+    if (focused !== "" && names.indexOf(focused) >= 0) return focused
+    return names.length > 0 ? names[0] : ""
   }
 
   // Settings live on the bar layout entry (bar.layout.<section>[] in shell.json);

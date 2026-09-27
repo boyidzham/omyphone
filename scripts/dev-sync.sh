@@ -10,5 +10,7 @@ if [ ! -d "$dest" ]; then
   exit 1
 fi
 rsync -a --delete --exclude .git --exclude tests --exclude docs --exclude scripts --exclude '__pycache__' "$src/" "$dest/"
-omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+# A plugin rescan reloads the service but not the bar widget's code, so restart
+# the whole shell (the bar blinks for a second).
+omarchy restart shell >/dev/null 2>&1 || true
 echo "synced to $dest"

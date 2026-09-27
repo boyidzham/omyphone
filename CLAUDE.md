@@ -55,12 +55,14 @@ never touch the real desktop bus.
    path works. `--yes` is needed when there is no terminal to confirm in. It may
    print "omarchy-shell is not responding" while the shell reloads; the plugin is
    still added and enabled (check `omarchy plugin list`).
-2. Edit here, run `tests/run.sh`, then `scripts/dev-sync.sh`. The shell reloads
-   the plugin.
+2. Edit here, run `tests/run.sh`, then `scripts/dev-sync.sh`. It restarts the
+   shell, because a plugin rescan reloads the service but keeps the old bar
+   widget code (seen 2026-09-28).
 3. For a clean install: `omarchy plugin remove omyphone`, then add it again.
 4. Open or close the popup from a script: `omarchy-shell omyphone open` / `close`
    (it opens on one monitor). QML `console.log` does not reach the journal; use
-   `console.warn` for temporary debugging (`journalctl --user | grep omarchy-shell`).
+   `console.warn` for temporary debugging. The shell's log is
+   `/run/user/1000/quickshell/by-id/<id>/log.log` (`qs list --all` gives the id).
 
 Quirks seen on install (2026-09-28): with 3 monitors the shell logs "IpcHandler ...
 another handler is registered for target omyphone". Built-in panels log the same,
@@ -76,5 +78,11 @@ so it is harmless. With Num Lock off, numpad keys act as arrows, as in any app.
   (`busctl tree` does not show `ag1`).
 - The iPhone never reconnects by itself; the PC must call `Device1.Connect`. No
   WirePlumber config is needed.
+- A third-party `service` is created with no parent, outside the shell's object
+  tree, so windows declared in it never appear. Windows (the incoming-call card)
+  live in `BarWidget.qml`.
+- Omarchy's notifications show no action buttons: a left click runs the
+  `default` action, a right click dismisses. A sender's `CloseNotification` does
+  not take the toast off screen. That is why incoming calls use our own card.
 - Quickshell has no generic D-Bus client, and `Quickshell.Bluetooth` does not
   expose UUIDs. That is why the helper exists.
