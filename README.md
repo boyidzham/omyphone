@@ -40,7 +40,9 @@ no VoIP account and no cloud: your call never leaves your desk and your phone.
   (PipeWire 1.4+, WirePlumber, BlueZ, Python with PyGObject). `bluez-obex` is only
   needed for contacts; OMyPhone offers to install it.
 - A phone that works with a car kit (Bluetooth Hands-Free Profile). That is nearly every
-  phone. Tested with an iPhone 13.
+  phone. Tested with an iPhone 13 only: Android phones use the same standard profiles
+  and should work, but have not been tested yet. If yours does or does not, please
+  [say so](#reporting-a-problem).
 - Bluetooth on your PC.
 
 ## Install
@@ -91,6 +93,22 @@ only by you.
 - **Recent calls** come from your phone once contacts are synced. Without that, they
   are the calls made through OMyPhone, stored only on your PC in
   `~/.local/state/omyphone/recents.json` (the last 100 calls).
+
+## Reporting a problem
+
+Please [open an issue](https://github.com/boyidzham/omyphone/issues) with:
+
+- your phone's make, model and system version (for example "Samsung Galaxy S23,
+  Android 15"),
+- what you did, what you expected, and what happened instead,
+- the helper's log lines:
+
+  ```sh
+  grep -h "omyphone helper" /run/user/$(id -u)/quickshell/by-id/*/log.log | sort | tail -50
+  ```
+
+The helper does not log your contacts or calls, but read the lines before you post
+them.
 
 ## How it works
 
