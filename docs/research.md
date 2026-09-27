@@ -142,6 +142,22 @@ Surprises and changes made:
   tab. Recent calls show direction icons, and missed calls use the urgent colour.
 - With Num Lock off, numpad keys arrive as arrows. That is expected.
 
+## Contacts checklist (2026-09-28)
+
+Run with the installed plugin (branch `contacts`), the iPhone 13 and a second
+phone. All buttons were pressed by the maintainer.
+
+| # | Item | Result |
+|---|---|---|
+| 1 | First sync from the Contacts tab | Pass. The phone sent 41 cards; 39 contacts listed (the owner's own card and one card without a number are left out). Call history came too (100 calls, 62 missed). Cache files are 0600, the temp folder is empty afterwards |
+| 2 | Typing a name with j, k, h, l and x in the search box | Pass. No clash with the panel's navigation keys |
+| 3 | Call from the Contacts tab | Pass. The call screen shows the name and the number |
+| 4 | Incoming call from a saved number | Pass. The card shows the name, with the number below |
+| 5 | Missed call from a saved number | Pass. The notification and the Missed tab show the name; the click opens Missed |
+| 6 | Call made on the phone itself | Pass. It appears in Recent after it ends |
+| 7 | Bluetooth off and on at the phone | Pass. Reconnects after a few seconds and syncs by itself ("Synced just now") |
+| 8 | Install flow without `bluez-obex` | Not run on the real machine (package already installed); covered by the fake obexd tests |
+
 ## Not yet tested
 
 - DTMF (`SendTones`) during a call.
