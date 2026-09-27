@@ -1,6 +1,7 @@
 # omyphone v1 design
 
-Date: 2026-09-27. Status: approved in conversation, pending review of this written spec.
+Date: 2026-09-27. Status: approved in conversation. Revised the same day after the
+Omarchy shell API research (see "Revision notes" at the end).
 Background and test results: [`docs/research.md`](../../research.md).
 
 ## Goal
@@ -19,7 +20,7 @@ In v1:
 - Dial a number from a keypad
 - Incoming call notification with Answer and Decline
 - In-call screen with hang up, mic mute and keypad (DTMF, for "press 1" menus)
-- Recent calls, kept locally by the plugin, with tap to call back
+- Recent calls, kept locally by the plugin, with click to call back
 - Automatic reconnect to the phone
 - Works with any phone that supports HFP (tested on iPhone 13)
 
@@ -29,135 +30,186 @@ calls, SMS, and support for more than one phone at a time.
 
 ## Architecture
 
-The plugin is a single folder (`omyphone/`) with four parts:
-
 ```
 omyphone/
-├── manifest.json        kinds: service, bar-widget, panel
-├── Service.qml          background part, one instance, always running
-├── BarWidget.qml        phone icon in the bar, one per monitor
-├── Panel.qml            keypad / recents / in-call screen
-├── helper/omyphone-helper.py
-├── tests/
-├── README.md, LICENSE (MIT), preview.png
+├── manifest.json        kinds: service, bar-widget
+├── Service.qml          background part, one instance, runs the helper
+├── BarWidget.qml        bar icon + popup under it (one per monitor)
+├── KeypadView.qml, RecentsView.qml, InCallView.qml   popup contents
+├── Format.js            display helpers (timer, relative time)
+├── helper/
+│   ├── omyphone-helper  entry script
+│   └── omyphone/        Python package: all call, Bluetooth, recents,
+│                        mute and notification logic
+├── tests/               Python unittest suite + fakes + QML lint
+├── scripts/dev-sync.sh  copy the working tree into the installed plugin
+├── README.md, LICENSE (MIT), CLAUDE.md
 ```
 
-Why this shape (verified in Omarchy 4.0.4 and quickshell 0.3.1, see research):
-- Quickshell has no generic D-Bus client, so the call control goes through a
-  helper process. Python 3 and `python-gobject` (Gio) are in Omarchy's base package
-  list (`/usr/share/omarchy/install/omarchy-base.packages`), so every Omarchy install
+**The helper holds all the logic. The QML is a thin view.** The helper is a Python
+process that talks to D-Bus and prints what happens. The QML only shows that state
+and sends button presses back. This keeps the logic testable without a phone or a
+running shell.
+
+Why this shape (verified in Omarchy 4.0.4 and quickshell 0.3.1):
+- Quickshell has no generic D-Bus client, so D-Bus goes through a helper process.
+  Python 3 and `python-gobject` (Gio) are in Omarchy's base package list
+  (`/usr/share/omarchy/install/omarchy-base.packages`), so every Omarchy install
   has them.
-- A `service` plugin kind is a single instance that runs while the plugin is
-  enabled, whether or not a panel is open. Bar widgets are created once per monitor,
-  so no background logic lives in `BarWidget.qml`.
-- `Quickshell.Bluetooth` exposes BlueZ devices with `connect()` and `connected`, so
-  reconnect is done in QML, not in the helper.
+- A `service` plugin is one instance that runs while the plugin is enabled, whether
+  or not the popup is open. Bar widgets are created once per monitor, so they hold
+  no logic.
+- `Quickshell.Bluetooth` does not expose device UUIDs, so it cannot tell which
+  paired device is a phone. Phone detection and reconnect therefore live in the
+  helper, which reads BlueZ over D-Bus.
+- The popup follows the built-in Bluetooth widget's pattern: the bar-widget entry
+  is a `qs.Ui` `Panel` holding a `BarIconButton` and a `KeyboardPanel`, so the
+  popup opens anchored under the icon. There is no separate `panel` kind. A `panel`
+  kind would give a free-floating window instead.
 
 Alternatives we considered and rejected: calling `busctl` for every action and
 parsing its output (fragile, no clean event stream), and a separate system daemon
 like quattro-bt-phone (needs its own install and setup, which breaks the
 one-command install).
 
-### Service.qml (background)
+### Helper (`helper/`)
 
-- Starts the helper with `Process` and reads its stdout line by line with a
-  `SplitParser`. It writes commands to the helper's stdin.
-- Holds the state that the widget and panel read: `phone` (name, address,
-  connected), `calls` (list of current calls), `muted`, `recents`, `lastError`.
-- If the helper exits, it restarts the helper after 2 seconds. It also backs off to
-  30 seconds after 5 restarts in a minute, so a broken helper cannot spin.
-- **Phone selection:** uses the paired device whose address is set in the plugin
-  setting `phoneAddress`. If that setting is empty, it uses the first paired device
-  that advertises the HFP Audio Gateway UUID `0000111f-0000-1000-8000-00805f9b34fb`.
-- **Reconnect:** while the adapter is powered and the chosen phone is paired but not
-  connected, it calls `connect()` every 30 seconds. It does nothing while the PC's
-  Bluetooth is off. Research showed that the iPhone never reconnects by itself, and
-  that a PC-side connect brings the call profile up within 2 seconds.
-- **Recents:** it appends one entry when a call ends: number, direction
-  (`incoming` / `outgoing` / `missed`), start time and duration. The list is capped
-  at the 100 newest entries and saved as JSON to
-  `$XDG_STATE_HOME/omyphone/recents.json` (default
-  `~/.local/state/omyphone/recents.json`). A missing or corrupt file is treated as
-  an empty list.
-- **Mute:** mutes the default microphone while a call is active and restores the
-  previous mute state when the call ends. The exact mechanism (`wpctl` on the
-  default source, or the AudioGateway `MicrophoneVolume` property) is chosen during
-  implementation by testing which one actually silences the call.
-
-### Helper (`helper/omyphone-helper.py`)
-
-A small Python process. It talks to `org.pipewire.Telephony` on the session bus
-using Gio, and it is the only code that touches that bus.
-
+Started by Service.qml as `python3 helper/omyphone-helper [--phone AA:BB:...]`.
 It speaks JSON lines: one JSON object per line, commands on stdin and events on
-stdout.
+stdout. It exits when stdin closes, so it dies with the shell.
 
-Commands:
+Modules:
+
+| Module | Responsibility |
+|---|---|
+| `protocol.py` | Parse and validate commands, encode events |
+| `telephony.py` | `org.pipewire.Telephony` on the session bus: snapshot, signals, dial, answer, hangup, tones |
+| `bluez.py` | `org.bluez` on the system bus: find the phone, report its status, reconnect |
+| `calllog.py` | Turn call lifecycles into recents entries (direction, missed, duration) |
+| `recents.py` | Load and save the recents file |
+| `notifier.py` | Incoming-call and missed-call notifications via `notify-send` |
+| `mic.py` | Mute and unmute the default microphone with `wpctl` |
+| `engine.py` | Wires the modules together and handles commands |
+| `main.py` | Arguments, GLib main loop, stdin reading |
+
+Commands (stdin):
 
 | Command | Action |
 |---|---|
-| `{"cmd":"dial","number":"..."}` | `AudioGateway1.Dial` |
+| `{"cmd":"dial","number":"..."}` | `AudioGateway1.Dial` on the first gateway |
 | `{"cmd":"answer","call":"<path>"}` | `Call1.Answer` |
 | `{"cmd":"hangup","call":"<path>"}` | `Call1.Hangup` |
+| `{"cmd":"decline","call":"<path>"}` | Mark the call declined, then `Call1.Hangup` |
 | `{"cmd":"tones","digits":"..."}` | `AudioGateway1.SendTones` |
+| `{"cmd":"mute","on":true/false}` | Mute or unmute the mic for the current call |
 
-Events:
+Numbers have spaces, `-`, `(` and `)` removed, then must match `^\+?[0-9*#]{1,32}$`.
+Tones must match `^[0-9*#ABCD]{1,32}$`. Call paths must match
+`^/org/pipewire/Telephony/ag[0-9]+/call[0-9]+$`. Anything else, including bad JSON,
+produces an `error` event, never a crash.
 
-| Event | When |
+Events (stdout):
+
+| Event | Meaning |
 |---|---|
-| `{"event":"gateway","path":...,"present":true/false}` | A phone appears or disappears on the telephony bus |
-| `{"event":"call","path":...,"number":...,"state":...}` | A call is added or its state changes. States are passed through as reported, e.g. `incoming`, `dialing`, `alerting`, `active`, `held` |
-| `{"event":"call-removed","path":...}` | A call ends |
-| `{"event":"notification-action","call":...,"action":"answer"/"decline"}` | The user clicked a button on the incoming-call notification |
-| `{"event":"error","cmd":...,"message":...}` | A command failed |
+| `{"event":"phone","found":bool,"address":s,"name":s,"connected":bool,"powered":bool}` | Bluetooth status of the chosen phone. Sent on start and on change |
+| `{"event":"gateway","path":s,"present":bool}` | The phone's call control appeared or disappeared |
+| `{"event":"call","path":s,"number":s,"state":s}` | A call was added or its state changed. States as PipeWire reports them: `incoming`, `dialing`, `alerting`, `active`, `held`, `waiting`, `disconnected` |
+| `{"event":"call-removed","path":s}` | A call ended |
+| `{"event":"muted","muted":bool}` | Mic mute state for the call |
+| `{"event":"recents","entries":[...]}` | The full recents list, newest first. Sent on start and on change |
+| `{"event":"error","cmd":s,"message":s}` | A command failed |
 
-On start, and after any restart, the helper emits the current gateway and calls
-(`GetModems`, then `GetCalls` on each gateway) before listening for signals. That
-way a shell restart in the middle of a call picks the call straight back up. Signal
-names and interfaces are taken from PipeWire's `README-Telephony.md` and checked
-against the live bus during implementation.
+**Telephony.** On start, and whenever the `org.pipewire.Telephony` name reappears
+(for example after WirePlumber restarts), the helper reads `GetModems`, then
+`GetCalls` on each gateway, and emits the current state. That way a shell restart
+in the middle of a call picks the call straight back up. It listens to the
+ofono-compatible signals `ModemAdded`, `ModemRemoved`, `CallAdded`, `CallRemoved`
+and `org.ofono.VoiceCall.PropertyChanged`, as documented in PipeWire's
+`spa/plugins/bluez5/README-Telephony.md` (1.6.8). When the name vanishes, every
+known gateway and call is reported as gone.
 
-Unknown or malformed commands produce an `error` event, never a crash.
+**Phone detection and reconnect.** Every 5 seconds the helper reads BlueZ's
+managed objects. The phone is the device whose address matches `--phone`, or, if
+that is not given, the first paired device whose UUIDs include the HFP Audio Gateway
+UUID `0000111f-0000-1000-8000-00805f9b34fb`. A `phone` event is emitted only when
+something changed. If the adapter is powered and the phone is paired but not
+connected, the helper calls `Device1.Connect`, at most once every 30 seconds.
+Research showed that the iPhone never reconnects by itself, and that a PC-side
+connect brings the call profile up within 2 seconds. Nothing is attempted while
+the adapter is off.
 
-### Incoming-call notification
+**Recents.** One entry is added when a call ends:
+`{"number":s,"direction":"incoming"|"outgoing"|"missed","start":epoch_s,"duration":s}`.
+- The duration counts from when the call became `active`, and is 0 if it never did.
+- An incoming call that ends without becoming active, and was not declined from the
+  PC, is `missed`.
+- A call declined from the PC is `incoming` with a duration of 0.
 
+The list is capped at the 100 newest entries and saved as JSON to
+`$XDG_STATE_HOME/omyphone/recents.json` (default
+`~/.local/state/omyphone/recents.json`). A missing or corrupt file is treated as
+an empty list.
+
+**Notifications.**
 - When a call enters `incoming`, the helper runs `notify-send -u critical -p
-  -A answer=Answer -A decline=Decline "Incoming call" "<number>"`. It reads back the
-  notification ID and, later, the chosen action.
-- Omarchy's notification service lets critical notifications from `notify-send`
-  through Do Not Disturb (`plugins/notifications/Service.qml`, `shouldBypassDnd`).
-- Answer → `answer`, Decline → `hangup`.
-- If the call leaves `incoming` some other way (answered on the phone, or the
-  caller hung up), the helper closes the notification with
-  `org.freedesktop.Notifications.CloseNotification(id)`.
-- A call that goes from `incoming` straight to removed, without becoming `active`
-  and without being declined from the PC, is recorded as `missed`. A call declined
-  from the PC is recorded as `incoming` with a duration of 0. A separate normal-urgency notification, "Missed call from
-  <number>", is sent with app name `omyphone` so it stays in notification history.
+  -A answer=Answer -A decline=Decline "Incoming call" "<number>"`. Verified
+  2026-09-27 with notify-send 0.8.8: `-p` prints the ID on the first line straight
+  away, and the process waits.
+- The chosen action name is printed on the next line: Answer → answer, Decline →
+  hangup plus a "declined" mark.
+- Omarchy's notification service lets critical notifications whose app name is
+  `notify-send` through Do Not Disturb (`plugins/notifications/Service.qml`,
+  `shouldBypassDnd`).
+- If the call leaves `incoming` another way (answered on the phone, or the caller
+  hung up), the helper closes the notification with
+  `org.freedesktop.Notifications.CloseNotification(id)` (verified: notify-send then
+  exits 0 with no action) and terminates the notify-send process.
+- A missed call also sends a normal-urgency notification, "Missed call" /
+  "<number>", with app name `omyphone` so it stays in notification history.
 
-### BarWidget.qml
+**Mute.** `wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1|0`. Before the first mute in a
+call, the helper records whether the mic was already muted (`wpctl get-volume`
+prints `[MUTED]`). When the last call ends it restores that state. Whether muting
+the default source silences the call is checked in the real-phone checklist.
 
-- Phone icon. Muted colour when the phone is not connected, normal when connected.
-  During a call it turns to the accent colour and shows the call timer (`03:12`).
-- Click toggles the panel.
-- Uses Omarchy theme values (`bar.foreground`, `bar.fontFamily`, `qs.Commons`).
+### Service.qml
 
-### Panel.qml
+- Root `Item`, with `property var shell: null`, which the host injects.
+- Runs the helper with `Process` (`stdinEnabled: true`), reads stdout with
+  `SplitParser`, and sends commands with `write()`.
+- Exposes the state for the widgets: `phone`, `ready` (a gateway is present),
+  `calls`, `currentCall`, `activeSince`, `muted`, `recents`, `lastError`.
+- Functions: `dial(number)`, `answer(path)`, `decline(path)`, `hangup(path)`,
+  `sendTones(digits)`, `setMuted(on)`.
+- If the helper exits, it restarts it after 2 seconds. After 5 restarts within a
+  minute, the delay becomes 30 seconds.
+- **Settings:** a service gets no settings of its own. It finds its bar layout
+  entry in `shell.barConfig.layout` (entries can be plain id strings or objects
+  with an `id`) and reads `phoneAddress` from it. When `phoneAddress` changes, it
+  restarts the helper.
 
-Built from the `qs.Ui` kit so it matches Omarchy.
-- **Idle:** two tabs, Keypad and Recent.
-  - Keypad: a number field plus 0-9, `*`, `#`, `+`, backspace and Call. Typing on
-    the keyboard works too.
-  - Recent: a list of entries (number, direction icon, relative time, duration).
-    Click to call back.
-- **In call:** number, state (`Calling…`, `Ringing`, timer when active), and Mute,
-  Keypad (sends DTMF) and Hang up buttons.
-- **Not connected:** shows "Phone not connected" and the phone name, and Call is
-  disabled.
-- Errors from the helper are shown inline for a few seconds.
+### BarWidget.qml and the popup
 
-The panel only reads the service's state and sends it actions. It holds no state of
-its own apart from what is typed.
+- Root is a `qs.Ui` `Panel` (`moduleName` and `ipcTarget` set to `"omyphone"`),
+  containing a `BarIconButton` and a `KeyboardPanel` anchored to it.
+- It gets the service with `bar.shell.serviceFor("omyphone")`, retrying on a timer
+  until the service exists, and again if it is recreated.
+- **Icon:** dimmed when not ready. Accent-coloured (`active`) during a call, with a
+  call timer (`03:12`) shown next to it. Left click toggles the popup.
+- **Popup:**
+  - When not ready: "Phone not connected" plus the phone name, or "No phone paired".
+  - When ready and idle: a `ButtonGroup` with Keypad and Recent.
+    - Keypad: the number display, a 3×4 grid (1-9, `*`, 0, `#`), `+`, backspace
+      and Call. Typing digits on the keyboard works too, and Enter calls.
+    - Recent: the newest entries (number, a direction label, relative time,
+      duration). Click one to call it back.
+  - During a call: the number, the state (`Calling…`, `Ringing…`, `Incoming call`,
+    or the timer). An incoming call shows Answer and Decline. Other calls show Mute,
+    Keypad (DTMF) and Hang up.
+- Errors from the helper show inline for 4 seconds.
+- Theme values come from `qs.Commons` (`Color`, `Style`) and `bar.foreground` /
+  `bar.fontFamily`.
 
 ### Settings (manifest `barWidget.schema`)
 
@@ -168,28 +220,34 @@ its own apart from what is typed.
 
 | Situation | Behaviour |
 |---|---|
-| Phone out of range or its Bluetooth off | Icon muted, retry every 30 s |
-| PC Bluetooth off | Icon muted, no retries |
-| Dial while not connected | Inline "Phone not connected", no call |
+| Phone out of range or its Bluetooth off | Icon dimmed, reconnect every 30 s |
+| PC Bluetooth off | Icon dimmed, no attempts |
+| No HFP phone paired | Popup says "No phone paired" |
+| Dial while not connected | Helper returns an error, and the popup shows "Phone not connected" |
 | Helper crashes | Restarted in 2 s, backs off if it keeps crashing; the live call is unaffected |
-| Shell restarts during a call | The helper's startup snapshot restores the in-call screen |
+| Shell or WirePlumber restarts during a call | The helper's snapshot restores the call state |
 | Recents file missing or corrupt | Start with an empty list |
 | Several monitors | One widget per bar, one service, so no duplicate notifications or connects |
+| Invalid command | `error` event, helper keeps running |
 
 ## Testing
 
-Automated (no phone needed):
-- **Fake telephony bus:** a Python fake of `org.pipewire.Telephony` (Manager,
-  AudioGateway1, Call1, VoiceCallManager signals) on a private session bus
-  (`dbus-run-session`). The tests drive it to simulate outgoing, incoming, answer,
-  decline, remote hangup and missed calls, and assert on the helper's JSON events
-  and on the D-Bus calls it makes.
-- The notification step is covered by pointing the helper at a stub `notify-send`
-  on `PATH` in tests.
-- Recents logic: append, cap at 100, corrupt file.
-- `omarchy plugin validate <folder>`.
-- A headless QML load test of the plugin files, following the pattern used by the
-  installed omaplug plugin.
+Automated, run with `tests/run.sh` (no phone needed):
+- **Unit tests** (Python `unittest`, no pytest dependency): protocol validation,
+  calllog rules (outgoing, answered, missed, declined, durations), recents
+  (cap, corrupt file), and mic state restore with a stub `wpctl`.
+- **Integration tests** inside a private bus (`dbus-run-session`):
+  - A fake `org.pipewire.Telephony` and a fake `org.bluez`, each a small Python
+    process with a test-control interface.
+  - The real helper runs against them, with stub `notify-send` and `wpctl` first
+    on `PATH`.
+  - Scenarios: outgoing call, incoming answered from the notification, declined,
+    missed, answered on the phone, remote hang-up, telephony service restart
+    mid-call, reconnect when the phone is disconnected, no reconnect while the
+    adapter is off, bad commands.
+- `omarchy plugin validate .`
+- QML lint (`qmllint` with `qs.Commons` / `qs.Ui` import paths), following the
+  pattern of the installed omaplug plugin.
 
 Manual checklist with a real phone, run once before release:
 1. Outgoing call from the keypad
@@ -198,9 +256,18 @@ Manual checklist with a real phone, run once before release:
 4. Incoming call left to ring out, then shown as missed
 5. Incoming call answered on the phone
 6. DTMF during a call (IVR menu)
-7. Mute and unmute
+7. Mute and unmute; the other side cannot hear you while muted
 8. Phone taken out of range and brought back, then auto-reconnect
 9. `omarchy restart shell` during a call
+
+## Development loop
+
+- Install once from the local repository: `omarchy plugin add
+  ~/Projects/omyphone` (it runs `git clone`) and `omarchy plugin enable omyphone`.
+- `scripts/dev-sync.sh` copies the working tree (except `.git` and `tests`) into
+  `~/.config/omarchy/plugins/omyphone/`. The shell hot-reloads on save.
+- Before a real install, reset the installed copy with `git reset --hard` and
+  `git pull`, or remove and add it again.
 
 ## Distribution
 
@@ -209,18 +276,15 @@ Manual checklist with a real phone, run once before release:
 - README with a preview image. Submitted to the Omarchy plugin marketplace after the
   manual checklist passes. Pushing and submitting both need the owner's go-ahead.
 
-## To settle during implementation planning
+## Revision notes (2026-09-27)
 
-- **Dev loop:** how to develop in `~/Projects/omyphone` and run it as a real plugin.
-  Plugin folders may not contain symlinks, and whether `omarchy plugin add` accepts
-  a local path is unverified.
-- **`notify-send` behaviour:** check that `-p` together with `-A` prints the ID
-  first and then the action, and that it keeps waiting until a button is clicked or
-  the notification is closed.
-- **Mute mechanism** (see Service.qml).
-- **Panel wiring:** use the `panel` kind (summoned by ID) or a `Loader` inside the
-  widget like omaplug; pick whichever the Omarchy README recommends for third-party
-  plugins.
-- **Settings access:** the `phoneAddress` setting is declared on the bar widget.
-  Check how the service reads it (the Omarchy shell API or `shell.json`), or whether
-  a service can declare its own settings.
+Changed after reading the Omarchy 4.0.4 shell source:
+- Dropped the `panel` kind. The popup is anchored under the bar icon, like the
+  built-in Bluetooth widget.
+- Moved reconnect from QML into the helper, because `Quickshell.Bluetooth` does not
+  expose UUIDs.
+- Moved recents, mute and notification handling into the helper as well, so all
+  logic is in one testable place.
+- Settled the open questions: the dev loop, `notify-send` behaviour, and how the
+  service reads settings. The mute mechanism is still to be confirmed on a real
+  call.
