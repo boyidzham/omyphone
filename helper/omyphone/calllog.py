@@ -52,9 +52,9 @@ class CallLog:
         info = self._calls.get(path)
         return info["active_at"] or 0 if info else 0
 
-    def mark_declined(self, path, declined=True):
+    def mark_declined(self, path):
         if path in self._calls:
-            self._calls[path]["declined"] = declined
+            self._calls[path]["declined"] = True
             self._save()
 
     def park(self, path):

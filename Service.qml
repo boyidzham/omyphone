@@ -26,6 +26,9 @@ Item {
   property var contacts: []
   property var contactsStatus: ({ state: "off", enabled: false, synced: 0, message: "" })
   property string lastError: ""
+  // The command that failed ("answer", "dial", ...), so the incoming-call card
+  // can show only its own errors.
+  property string lastErrorCmd: ""
   property var restartTimes: []
 
   // A clicked missed-call notification asks for the popup on a given tab.
@@ -106,7 +109,7 @@ Item {
     case "recents": recents = msg.entries; missed = msg.missed || []; break
     case "contacts": contacts = msg.entries; break
     case "contacts-status": contactsStatus = msg; break
-    case "error": showError(msg.message); break
+    case "error": showError(msg.message, msg.cmd || ""); break
     case "show": showPopup(msg.tab); break
     }
   }
@@ -129,8 +132,9 @@ Item {
     if (shell) shell.summon("omyphone")
   }
 
-  function showError(message) {
+  function showError(message, cmd) {
     lastError = message
+    lastErrorCmd = cmd
     errorTimer.restart()
   }
 
@@ -168,6 +172,9 @@ Item {
   Timer {
     id: errorTimer
     interval: 4000
-    onTriggered: root.lastError = ""
+    onTriggered: {
+      root.lastError = ""
+      root.lastErrorCmd = ""
+    }
   }
 }

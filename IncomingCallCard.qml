@@ -85,6 +85,18 @@ PanelWindow {
         font.pixelSize: Style.font.body
       }
 
+      // A failed Answer or Decline (the popup may be closed, so say it here).
+      Text {
+        Layout.fillWidth: true
+        visible: root.service !== null && root.service.lastError !== ""
+          && (root.service.lastErrorCmd === "answer" || root.service.lastErrorCmd === "decline")
+        text: root.service ? root.service.lastError : ""
+        wrapMode: Text.Wrap
+        color: Color.urgent
+        font.family: "Liberation Sans"
+        font.pixelSize: Style.font.body
+      }
+
       RowLayout {
         Layout.topMargin: Style.space(8)
         spacing: Style.space(8)

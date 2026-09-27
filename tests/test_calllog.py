@@ -65,12 +65,6 @@ class CallLogTests(unittest.TestCase):
         self.log.mark_declined(P)
         self.assertIsNone(self.log.remove(P))
 
-    def test_declined_can_be_taken_back(self):
-        self.log.update(P, "0123", "incoming")
-        self.log.mark_declined(P)
-        self.log.mark_declined(P, False)  # the hangup failed and the call rang out
-        self.assertEqual(self.log.remove(P)["direction"], "missed")
-
     def test_active_since(self):
         self.log.update(P, "0123", "dialing")
         self.assertEqual(self.log.active_since(P), 0)
