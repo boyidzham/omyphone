@@ -52,7 +52,7 @@ class Engine:
 
     def stop(self):
         self.notifier.close_all()
-        self.mic.restore()
+        self.mic.restore_now()
 
     # --- listener methods (Telephony, PhoneLink) ---
 
@@ -69,7 +69,7 @@ class Engine:
 
     def call(self, path, number, state):
         if not self._tracked:
-            self._emit("muted", muted=self.mic.refresh())
+            self.mic.refresh(self._emit_muted)
         self._tracked.add(path)
         self.calllog.update(path, number, state)
         self._emit("call", path=path, number=number, state=state, name=self.directory.lookup(number),
@@ -92,8 +92,7 @@ class Engine:
             # Even a call not logged here (first seen mid-call) is in the phone's history.
             self.contacts.call_ended()
         if not self._tracked:
-            self.mic.restore()
-            self._emit("muted", muted=self.mic.muted)
+            self.mic.restore(self._emit_muted)
 
     # --- listener methods (ContactsSync) ---
 
@@ -107,6 +106,9 @@ class Engine:
 
     def history_changed(self):
         self._emit_recents()
+
+    def _emit_muted(self, muted):
+        self._emit("muted", muted=muted)
 
     def _emit_recents(self):
         history = self._history_store
@@ -151,5 +153,4 @@ class Engine:
             if not self._tracked:
                 on_error("No active call")
                 return
-            self.mic.set_muted(cmd["on"])
-            self._emit("muted", muted=self.mic.muted)
+            self.mic.set_muted(cmd["on"], self._emit_muted)

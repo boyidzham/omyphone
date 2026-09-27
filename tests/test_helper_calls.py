@@ -109,7 +109,7 @@ class HelperCallTests(unittest.TestCase):
         first = self.incoming("1")
         self.fake.control("SetState", "(os)", (first, "active"))
         self.helper.send({"cmd": "mute", "on": True})
-        self.assertTrue(self.helper.wait_for(is_event("muted"))["muted"])
+        self.helper.wait_for(is_event("muted", muted=True))
         self.assertIn("set-mute @DEFAULT_AUDIO_SOURCE@ 1", self.stubs.wpctl())
         second = self.incoming("2")
         self.fake.control("RemoveCall", "(o)", (first,))
@@ -135,6 +135,14 @@ class HelperCallTests(unittest.TestCase):
         self.assertEqual((first["event"], first["path"]), ("call", path))
         self.helper.send({"cmd": "tones", "digits": "1"})
         wait_until(lambda: "SendTones 1" in self.fake.log())  # the gateway is still there
+
+    def test_slow_wpctl_does_not_hold_up_commands(self):
+        self.start_helper()
+        (self.dir / "wpctl-delay").write_text("2")
+        self.fake.control("AddCall", "(ss)", ("0123", "incoming"), "(o)")  # starts a mute-state read
+        self.helper.send({"cmd": "tones", "digits": "7"})
+        wait_until(lambda: "SendTones 7" in self.fake.log(), timeout=1.0)
+        self.assertFalse(self.helper.wait_for(is_event("muted"), timeout=4)["muted"])
 
     def test_mute_without_call_is_an_error(self):
         self.start_helper()
@@ -212,7 +220,7 @@ class HelperCallTests(unittest.TestCase):
         path = self.incoming()
         self.fake.control("SetState", "(os)", (path, "active"))
         self.helper.send({"cmd": "mute", "on": True})
-        self.assertTrue(self.helper.wait_for(is_event("muted"))["muted"])
+        self.helper.wait_for(is_event("muted", muted=True))
         self.helper.proc.terminate()
         self.helper.proc.wait(5)
         self.assertFalse((self.dir / "mic-muted").exists())
