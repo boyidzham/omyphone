@@ -6,12 +6,38 @@ calls.
 """
 import json
 import re
+import unicodedata
 
 NUMBER_RE = re.compile(r"\+?[0-9*#]{1,32}")
 TONES_RE = re.compile(r"[0-9*#ABCD]{1,32}")
 CALL_RE = re.compile(r"/org/pipewire/Telephony/ag[0-9]+/call[0-9]+")
 # Matched with fullmatch: "$" would also accept a trailing newline.
-_FORMATTING = str.maketrans("", "", " -()")
+_PAUSE_OR_EXTENSION = re.compile(r"[,;pPwWxX]")
+# Formatting a phone number can carry, safe to drop: spaces, a non-breaking
+# space, dashes, parens and dots. Unicode "format" characters (category Cf)
+# are dropped too: invisible direction marks such as LRE/PDF/LRM/RLM that
+# phones sometimes insert around a number.
+_FORMATTING_CHARS = " \xa0-()."
+
+
+def _clean_number(raw):
+    """Keep only the part before a pause/extension marker, then drop
+    formatting. A "+" is kept only when it is the first character kept;
+    a "+" anywhere else is dropped, not kept. Anything left over (letters,
+    a stray newline, and so on) stays, so the caller's regex check still
+    rejects it, because a wrong number is worse than a rejected one.
+    """
+    before_pause = _PAUSE_OR_EXTENSION.split(raw, maxsplit=1)[0]
+    kept = []
+    for char in before_pause:
+        if char in _FORMATTING_CHARS or unicodedata.category(char) == "Cf":
+            continue
+        if char == "+":
+            if not kept:
+                kept.append(char)
+            continue
+        kept.append(char)
+    return "".join(kept)
 
 
 class ProtocolError(ValueError):
@@ -31,7 +57,7 @@ def parse_command(line):
     cmd = msg["cmd"]
     if cmd == "dial":
         number = msg.get("number")
-        number = number.translate(_FORMATTING) if isinstance(number, str) else ""
+        number = _clean_number(number) if isinstance(number, str) else ""
         if not NUMBER_RE.fullmatch(number):
             raise ProtocolError(cmd, "invalid number")
         return {"cmd": cmd, "number": number}

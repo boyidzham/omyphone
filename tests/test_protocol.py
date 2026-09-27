@@ -20,9 +20,27 @@ class ParseCommandTests(unittest.TestCase):
     def test_dial_accepts_star_and_hash(self):
         self.assertEqual(parse_command('{"cmd":"dial","number":"*123#"}')["number"], "*123#")
 
-    def test_dial_rejects_letters_plus_in_middle_and_too_long(self):
-        for number in ["abc", "12+34", "", "1" * 33, 123]:
+    def test_dial_rejects_letters_and_too_long(self):
+        for number in ["abc", "", "1" * 33, 123]:
             self.assertRejected(json.dumps({"cmd": "dial", "number": number}), "dial", "invalid number")
+
+    def test_dial_drops_dots_and_non_breaking_spaces(self):
+        self.assertEqual(parse_command(json.dumps({"cmd": "dial", "number": "012.345.6789"}))["number"],
+                          "0123456789")
+        self.assertEqual(parse_command(json.dumps({"cmd": "dial", "number": "012\xa0345\xa06789"}))["number"],
+                          "0123456789")
+
+    def test_dial_cuts_at_the_first_pause_or_extension_marker(self):
+        self.assertEqual(parse_command(json.dumps({"cmd": "dial", "number": "+60 3-1234 5678,12"}))["number"],
+                          "+60312345678")
+        self.assertRejected(json.dumps({"cmd": "dial", "number": "x123"}), "dial", "invalid number")
+
+    def test_dial_drops_unicode_direction_marks(self):
+        number = "‪+60 12-345 6789‬"
+        self.assertEqual(parse_command(json.dumps({"cmd": "dial", "number": number}))["number"], "+60123456789")
+
+    def test_dial_drops_a_plus_that_is_not_at_the_start(self):
+        self.assertEqual(parse_command(json.dumps({"cmd": "dial", "number": "012+3"}))["number"], "0123")
 
     def test_answer_hangup_decline_need_a_call_path(self):
         for name in ("answer", "hangup", "decline"):
