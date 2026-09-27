@@ -43,7 +43,6 @@ never touch the real desktop bus.
 - No symlinks in the plugin folder, because `omarchy plugin validate` rejects them.
 - The helper must never crash on input. Every failure becomes an `error` event or
   a stderr line.
-- UI text is in English, since the plugin is aimed at the marketplace.
 - **Real calls cost money and reach real people.** Never dial, answer or hang up on
   the real phone without asking Boss first. Automated tests use the fakes only.
 - Pushing to GitHub and submitting to the Omarchy marketplace need Boss's go-ahead.
