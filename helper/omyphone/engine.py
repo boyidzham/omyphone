@@ -22,7 +22,7 @@ class Engine:
         self.recents = Recents(recents_path)
         self.calllog = CallLog(time.time)
         self.mic = Mic()
-        self.notifier = Notifier()
+        self.notifier = Notifier(lambda tab: self._emit("show", tab=tab))
         self.telephony = None
         self.link = None
 
@@ -33,6 +33,7 @@ class Engine:
         self.link = PhoneLink(self._bluez_bus, self, self._address, poll_s=self._poll_s, retry_s=self._retry_s)
 
     def stop(self):
+        self.notifier.close_all()
         self.mic.restore()
 
     # --- listener methods (Telephony, PhoneLink) ---

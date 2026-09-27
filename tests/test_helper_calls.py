@@ -88,6 +88,15 @@ class HelperCallTests(unittest.TestCase):
         self.assertEqual(missed[:2], ["-a", "omyphone"])
         self.assertEqual(missed[-1], "0199")
 
+    def test_clicking_missed_notification_shows_missed_calls(self):
+        self.start_helper()
+        path = self.incoming("0199")
+        self.fake.control("RemoveCall", "(o)", (path,))
+        missed = self.stubs.wait_notification("Missed call")
+        self.assertIn("default=Show missed calls", missed)
+        self.stubs.choose("default")
+        self.assertEqual(self.helper.wait_for(is_event("show"))["tab"], "missed")
+
     def test_tones(self):
         self.start_helper()
         self.helper.send({"cmd": "tones", "digits": "12#"})

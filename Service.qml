@@ -24,6 +24,9 @@ Item {
   property string lastError: ""
   property var restartTimes: []
 
+  // A clicked missed-call notification asks for the popup on a given tab.
+  signal showRequested(string tab)
+
   readonly property bool ready: gateways.length > 0
   readonly property var currentCall: {
     for (var i = 0; i < calls.length; i++) {
@@ -96,6 +99,7 @@ Item {
     case "muted": muted = msg.muted; break
     case "recents": recents = msg.entries; break
     case "error": showError(msg.message); break
+    case "show": showPopup(msg.tab); break
     }
   }
 
@@ -112,6 +116,11 @@ Item {
   function removeCall(path) {
     calls = calls.filter(function(c) { return c.path !== path })
     if (calls.length === 0) activeSince = 0
+  }
+
+  function showPopup(tab) {
+    showRequested(tab)
+    if (shell) shell.summon("omyphone")
   }
 
   function showError(message) {

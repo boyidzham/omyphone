@@ -24,6 +24,11 @@ Column {
 
   onCallChanged: if (call) keypad.number = ""
 
+  Connections {
+    target: root.phone
+    function onShowRequested(tab) { root.tab = tab }
+  }
+
   Text {
     visible: !root.ready
     width: parent.width
@@ -50,7 +55,7 @@ Column {
   ButtonGroup {
     visible: root.ready && root.call === null
     width: parent.width
-    options: [{ value: "keypad", label: "Keypad" }, { value: "recent", label: "Recent" }]
+    options: [{ value: "keypad", label: "Keypad" }, { value: "recent", label: "Recent" }, { value: "missed", label: "Missed" }]
     value: root.tab
     onChanged: function(value) { root.tab = value }
   }
@@ -67,6 +72,14 @@ Column {
     width: parent.width
     phone: root.phone
     now: root.now
+  }
+
+  RecentsView {
+    visible: root.ready && root.call === null && root.tab === "missed"
+    width: parent.width
+    phone: root.phone
+    now: root.now
+    missedOnly: true
   }
 
   Text {
