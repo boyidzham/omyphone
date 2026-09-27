@@ -7,9 +7,9 @@ cd "$(dirname "$0")/.."
 modules=0
 for arg in "$@"; do [[ $arg == -* ]] || modules=1; done
 if [ "$modules" = 1 ]; then
-  OMYPHONE_TEST_BUS=1 dbus-run-session -- python3 -m unittest "$@"
+  OMYPHONE_TEST_BUS=1 dbus-run-session --config-file=tests/session.conf -- python3 -m unittest "$@"
 else
-  OMYPHONE_TEST_BUS=1 dbus-run-session -- python3 -m unittest discover -s tests -t . "$@"
+  OMYPHONE_TEST_BUS=1 dbus-run-session --config-file=tests/session.conf -- python3 -m unittest discover -s tests -t . "$@"
   python3 tests/qml_lint.py
   omarchy plugin validate .
 fi

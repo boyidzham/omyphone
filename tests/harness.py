@@ -89,9 +89,14 @@ class Helper:
                    PATH=f"{STUBS}:{os.environ['PATH']}",
                    OMYPHONE_STUB_DIR=str(workdir),
                    XDG_STATE_HOME=str(workdir / "state"),
+                   XDG_RUNTIME_DIR=str(workdir / "run"),
                    OMYPHONE_BLUEZ_BUS="session",
                    OMYPHONE_POLL_SECONDS="0.2",
-                   OMYPHONE_RETRY_SECONDS="1")
+                   OMYPHONE_RETRY_SECONDS="1",
+                   OMYPHONE_CONTACTS_RETRY_SECONDS="0.2",
+                   OMYPHONE_CONTACTS_RETRY_WINDOW_SECONDS="10",
+                   OMYPHONE_INSTALL_CHECK_SECONDS="0.2",
+                   OMYPHONE_HISTORY_DELAY_SECONDS="0.2")
         self.proc = subprocess.Popen([sys.executable, str(HELPER), *args], stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, text=True, env=env)
         self._events = queue.Queue()
@@ -157,6 +162,9 @@ class Stubs:
 
     def wpctl(self):
         return self._lines("wpctl.log")
+
+    def terminal(self):
+        return [json.loads(line) for line in self._lines("terminal.log")]
 
     def notify_pids(self):
         return [int(line) for line in self._lines("notify.pids")]

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Test stub for Omarchy's floating-terminal launcher: records its arguments in
+# $OMYPHONE_STUB_DIR/terminal.log (one JSON list per run) and exits.
+python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' "$@" >> "$OMYPHONE_STUB_DIR/terminal.log"
