@@ -161,14 +161,19 @@ When a sync runs:
 
 ### Number matching (`contacts.py`)
 
-`key(number)`: keep digits only. If 9 or more digits, the key is the last 9
-digits; otherwise the whole digit string. Two numbers match when their keys are
-equal.
+Keep digits only. If either number has fewer than 7 digits, they match only
+when equal. Otherwise they match when their last `n` digits are equal, where `n`
+is the shorter length capped at 9.
 
-- `012 345 6789`, `+60123456789` and `+60 12-345 6789` all give `123456789`.
+- `012 345 6789`, `+60123456789` and `+60 12-345 6789` all match (last 9 digits
+  `123456789`).
+- 8-digit local numbers (Singapore, Hong Kong) match their `+65`/`+852` form
+  (last 8 digits).
 - Short numbers (`999`, service codes) only match exactly.
-- This needs no country code guessing. A false match needs two contacts whose
-  numbers share the last 9 digits, which is rare enough to accept.
+- This needs no country code guessing. A false match needs two numbers that
+  share their last 9 digits, which is rare enough to accept.
+- Lookups go through buckets keyed by the last 7 digits, so they stay fast with
+  thousands of contacts.
 - When several contacts share a key, the first by name (case-insensitive) wins.
 - History entries use the contacts lookup first and fall back to the history
   card's own `FN`.
