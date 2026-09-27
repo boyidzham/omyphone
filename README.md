@@ -137,8 +137,7 @@ phone ── Bluetooth hands-free ──► BlueZ ──► PipeWire (org.pipewi
 
 PipeWire's Bluetooth support exposes the phone's call controls on D-Bus. A small Python
 helper inside the plugin talks to it and to BlueZ, keeps your recent calls, and handles
-mute and notifications. The bar widget only shows what the helper reports. The design
-notes are in [`docs/`](docs/).
+mute and notifications. The bar widget only shows what the helper reports.
 
 ## Development
 
@@ -146,8 +145,6 @@ notes are in [`docs/`](docs/).
 tests/run.sh          # all tests, on a private D-Bus bus with fake services; no phone needed
 scripts/dev-sync.sh   # copy your working tree into the installed plugin and restart the shell
 ```
-
-The design notes are in [`docs/`](docs/).
 
 ## Licence
 

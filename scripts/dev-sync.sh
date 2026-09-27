@@ -4,7 +4,7 @@
 # Before a clean reinstall: omarchy plugin remove omyphone, then add it again.
 #
 # Only the plugin's own files are copied: what git tracks or would track (so
-# .gitignore'd and local files such as .claude/ stay out), minus what only
+# git-ignored and local-only files stay out), minus what only
 # development needs. Anything else in the installed copy is deleted, except its
 # .git (the plugin manager's clone).
 set -euo pipefail

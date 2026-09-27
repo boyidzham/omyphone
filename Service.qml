@@ -5,7 +5,7 @@ import Quickshell.Io
 
 // omyphone background service: one instance, runs while the plugin is enabled.
 // Starts helper/omyphone-helper, keeps the phone and call state it reports, and
-// forwards user actions to it. All logic lives in the helper; see the spec.
+// forwards user actions to it. All logic lives in the helper (helper/omyphone/).
 Item {
   id: root
 
