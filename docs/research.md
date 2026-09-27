@@ -94,11 +94,43 @@ PipeWire 1.4 or newer is needed for `org.pipewire.Telephony`.
   One retry right after a reconnect failed with `br-connection-page-timeout` and the
   next one worked, so retries need a short back-off.
 
+## v1 checklist (2026-09-28)
+
+Run with the installed plugin, the iPhone 13 and a second phone. All buttons were
+pressed by the owner.
+
+| # | Item | Result |
+|---|---|---|
+| 1 | Outgoing call from the keypad | Pass. Audio clear both ways |
+| 2 | Incoming call answered | Pass, after a redesign (see below). Answered from the card and from the popup |
+| 3 | Incoming call declined | Pass |
+| 4 | Missed call | Pass. Shown as missed; the notification click opens the Missed tab |
+| 5 | Incoming call answered on the phone | Not re-run after the card change |
+| 6 | DTMF during a call | Not tested (no IVR number to hand) |
+| 7 | Mute and unmute | Pass. The other side could not hear while muted, so the `wpctl` default-source approach works |
+| 8 | Phone off and on, auto-reconnect | Pass. Reconnects by itself after a short wait |
+| 9 | `omarchy restart shell` during a call | Pass. The call kept going and came back in the popup with its timer |
+
+Surprises and changes made:
+- Omarchy's notifications show **no action buttons**. A left click runs the
+  `default` action, a right click dismisses. A sender's `CloseNotification` does
+  not take the toast off screen either. So `notify-send -A answer/decline` did
+  nothing useful, and the toast stayed after answering. Incoming calls now show
+  omyphone's own card (Answer/Decline) in the notification corner of one monitor:
+  the `callScreen` setting, or the focused monitor.
+- A third-party `service` is created without a parent, outside the shell's object
+  tree, so windows declared in it never appear. The card lives in the bar widget.
+- `omarchy-shell shell rescanPlugins` reloads the service but not the bar widget's
+  code. `scripts/dev-sync.sh` restarts the shell instead.
+- Missed-call notifications use `-A default=...`, so a click opens the new Missed
+  tab. Recent calls show direction icons, and missed calls use the urgent colour.
+- With Num Lock off, numpad keys arrive as arrows. That is expected.
+
 ## Not yet tested
 
-- Rejecting an incoming call, and hanging up from the PC (`Hangup` on the call
-  object). Answering works, see Proven 5.
 - DTMF (`SendTones`) during a call.
+- An incoming call answered on the phone while the card is showing (the card
+  should close by itself).
 - Contacts and call history over PBAP. Needs `obexd`, which is in the `bluez-obex`
   package (not installed on the test machine). On iPhone, "Sync Contacts" must be on
   in the Bluetooth settings for the PC. Whether iPhone exposes call history over PBAP
