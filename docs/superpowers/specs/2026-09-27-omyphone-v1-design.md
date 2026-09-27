@@ -114,7 +114,7 @@ Events (stdout):
 |---|---|
 | `{"event":"phone","found":bool,"address":s,"name":s,"connected":bool,"powered":bool}` | Bluetooth status of the chosen phone. Sent on start and on change |
 | `{"event":"gateway","path":s,"present":bool}` | The phone's call control appeared or disappeared |
-| `{"event":"call","path":s,"number":s,"state":s}` | A call was added or its state changed. States as PipeWire reports them: `incoming`, `dialing`, `alerting`, `active`, `held`, `waiting`, `disconnected` |
+| `{"event":"call","path":s,"number":s,"state":s,"since":epoch_s}` | A call was added or its state changed. `since` is when it was answered, 0 before that or when unknown (the shell's call timers count from it). States as PipeWire reports them: `incoming`, `dialing`, `alerting`, `active`, `held`, `waiting`, `disconnected` |
 | `{"event":"call-removed","path":s}` | A call ended |
 | `{"event":"muted","muted":bool}` | Mic mute state for the call |
 | `{"event":"recents","entries":[...]}` | The full recents list, newest first. Sent on start and on change |
@@ -126,8 +126,10 @@ Events (stdout):
 in the middle of a call picks the call straight back up. It listens to the
 ofono-compatible signals `ModemAdded`, `ModemRemoved`, `CallAdded`, `CallRemoved`
 and `org.ofono.VoiceCall.PropertyChanged`, as documented in PipeWire's
-`spa/plugins/bluez5/README-Telephony.md` (1.6.8). When the name vanishes, every
-known gateway and call is reported as gone.
+`spa/plugins/bluez5/README-Telephony.md` (1.6.8). Signals count only when sent
+by the current owner of `org.pipewire.Telephony` (PipeWire sends them all from
+that connection), so no other bus client can fake a call. When the name
+vanishes, every known gateway and call is reported as gone.
 
 **Phone detection and reconnect.** Every 5 seconds the helper reads BlueZ's
 managed objects. The phone is the device whose address matches `--phone`, or, if
@@ -141,6 +143,11 @@ the adapter is off.
 
 **Recents.** One entry is added when a call ends:
 `{"number":s,"direction":"incoming"|"outgoing"|"missed","start":epoch_s,"duration":s}`.
+- PipeWire gives no direction or start time, so both come from watching the call
+  from its first state. Calls in progress are kept in `calls.json` (next to
+  `recents.json`, mode 0600), so a helper restart, or a telephony restart, picks
+  the same call up again. A call first seen already going (the phone connected
+  mid-call) has no timer and is not logged.
 - The duration counts from when the call became `active`, and is 0 if it never did.
 - An incoming call that ends without becoming active, and was not declined from the
   PC, is `missed`.
@@ -170,16 +177,20 @@ an empty list.
 
 **Mute.** `wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1|0`. Before the first mute in a
 call, the helper records whether the mic was already muted (`wpctl get-volume`
-prints `[MUTED]`). When the last call ends it restores that state. Whether muting
+prints `[MUTED]`). When the last call ends it restores that state. `wpctl` runs
+in the background (one command at a time, 5 s limit), so it never holds up the
+helper; only the restore at shutdown waits for it. Whether muting
 the default source silences the call is checked in the real-phone checklist.
 
 ### Service.qml
 
 - Root `Item`, with `property var shell: null`, which the host injects.
-- Runs the helper with `Process` (`stdinEnabled: true`), reads stdout with
+- Runs the helper with `Process` (`python3 -B`, so no `__pycache__` lands in the
+  plugin folder and triggers a plugin reload; `stdinEnabled: true`), reads stdout with
   `SplitParser`, and sends commands with `write()`.
 - Exposes the state for the widgets: `phone`, `ready` (a gateway is present),
-  `calls`, `currentCall`, `activeSince`, `muted`, `recents`, `lastError`.
+  `calls` (each with its `since`), `currentCall`, `muted`, `recents`, `lastError`
+  and `lastErrorCmd` (the incoming-call card shows `answer` and `decline` errors).
 - Functions: `dial(number)`, `answer(path)`, `decline(path)`, `hangup(path)`,
   `sendTones(digits)`, `setMuted(on)`.
 - If the helper exits, it restarts it after 2 seconds. After 5 restarts within a
@@ -264,8 +275,10 @@ Manual checklist with a real phone, run once before release:
 
 - Install once from the local repository: `omarchy plugin add
   ~/Projects/omyphone` (it runs `git clone`) and `omarchy plugin enable omyphone`.
-- `scripts/dev-sync.sh` copies the working tree (except `.git` and `tests`) into
-  `~/.config/omarchy/plugins/omyphone/`. The shell hot-reloads on save.
+- `scripts/dev-sync.sh` copies the plugin's own files (what git tracks or would
+  track, minus `tests`, `docs`, `scripts` and `CLAUDE.md`) into
+  `~/.config/omarchy/plugins/omyphone/`, deletes anything else there except
+  its `.git`, and restarts the shell.
 - Before a real install, reset the installed copy with `git reset --hard` and
   `git pull`, or remove and add it again.
 

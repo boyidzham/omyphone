@@ -115,9 +115,10 @@ New helper modules:
 
 | Module | Responsibility |
 |---|---|
-| `vcard.py` | Parse vCard 3.0 text: unfold lines, split params, unescape values. Returns contacts (`name`, `numbers` with labels) and history entries (`name`, `number`, `direction`, `start`). Drops photos, emails and everything else |
+| `vcard.py` | Parse vCard 3.0 text (and 2.1 quoted-printable values): unfold lines, split params, unescape values. Returns contacts (`name`, `numbers` with labels) and history entries (`name`, `number`, `direction`, `start`). Drops photos, emails and everything else |
 | `contacts.py` | Number keys and lookup; load and save `contacts.json` and `history.json` |
-| `phonebook.py` | The obexd client: availability check, session, pulls, transfer tracking, the sync state machine and permission retries, the install command |
+| `phonebook.py` | The obexd client: availability check, session, pulls, transfer tracking |
+| `sync.py` | The sync state machine: when to sync, permission and connect retries, the install command |
 
 `engine.py` wires them in; `recents.py` and `calllog.py` stay as the local log.
 All D-Bus calls are asynchronous on the existing GLib main loop, as in
@@ -140,6 +141,9 @@ All D-Bus calls are asynchronous on the existing GLib main loop, as in
    parsed, then deleted.
 6. `Client1.RemoveSession`. Also removed on any error, and on helper stop.
 
+A folder that fails does not stop the others: the pull returns the text of
+each folder it got and the error of each one it did not.
+
 One sync at a time. A request during a sync is queued once (repeats collapse).
 A whole sync has a 60 s timeout.
 
@@ -151,15 +155,24 @@ When a sync runs:
 
 ### Result handling
 
-- `pb` non-empty: replace the contacts cache. The first card of `pb` is the
+- The phonebook and the history are handled separately: one failing never
+  throws the other away.
+- `pb` non-empty: replace the contacts cache. A card with no name (no `FN`, `N`
+  or `ORG`) keeps an empty name: it shows as its number and is never used for a
+  name lookup. The first card of `pb` is the
   phone owner's own card (PBAP handle 0) and is skipped. **To confirm on the real
   phone**, see Testing.
 - `pb` empty: state `needs-permission`. The cache is kept (the phone may have
   just stopped sharing; old names are better than none). If the sync came from a
   user click, retry every 5 s for up to 3 minutes.
-- History non-empty: replace the history cache.
-- Errors (session refused, phone not connected, timeout, transfer error): state
-  `error` with the message; the cache is kept.
+- History non-empty: replace the history cache. Only when both `cch` and `mch`
+  came; a failed history is logged and the old cache kept.
+- `pb` errors (session refused, phone not connected, timeout, transfer error):
+  state `error` with the message; the cache is kept. After a connect, a failed
+  sync is retried twice, 5 s apart.
+- How the last `pb` pull went (`ready`, `needs-permission`, or `error` with its
+  message) is saved in `contacts.json`, so after a restart the tab shows the
+  same state instead of a guess.
 
 ### Number matching (`contacts.py`)
 
@@ -239,8 +252,10 @@ Tabs: Keypad | Recent | Missed | Contacts.
   refresh button beside it.
 - Filtering is case-insensitive on the name, and on the digits of the number.
   The filter function lives in `Format.js`.
-- Rows sorted A-Z: name on top, number (and label, if any) below. Click calls the
-  number. Enter calls the first (or selected) row; Up and Down move the selection.
+- Rows sorted A-Z: name on top, number (and label, if any) below; a contact
+  without a name shows its number on top and sorts last. Every match is listed
+  in a list 8 rows high that scrolls. Click calls the number. Enter calls the
+  first (or selected) row; Up and Down move the selection and scroll with it.
 - Footer: "Synced 2 min ago".
 - States: `off` shows the "Sync contacts" button (plus the install note when
   `needs-install`); `needs-permission` shows the hint and "Try again"; `syncing`
@@ -265,6 +280,7 @@ No name: the number, as now.
 | Phone not sharing (empty pull) | `needs-permission` hint, retries after a user click, cache kept |
 | Phone not connected | No sync attempted; cache used |
 | obexd error or timeout | `contacts-status` `error`, cache kept, helper keeps running |
+| History fails, phonebook works | Contacts updated, old history kept |
 | Corrupt cache file | Treated as empty |
 | Malformed vCard | Bad cards are skipped; the rest are used |
 

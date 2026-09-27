@@ -165,6 +165,10 @@ phone. All buttons were pressed by the maintainer.
 - Android phones on this code path (HFP is standard, and quattro-bt-phone below
   reports a Galaxy S25 FE working).
 - Switching call audio back to the phone mid-call.
+- A call already going when the phone connects (expected: the call screen shows
+  "Connected" with no timer, and Recent gets it only from the phone's history).
+- Contacts from a phone that sends vCard 2.1 (quoted-printable names are
+  decoded, but only fake-tested).
 
 ## Prior art
 
