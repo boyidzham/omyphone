@@ -18,7 +18,7 @@ fi
 list="$(mktemp)"
 trap 'rm -f "$list"' EXIT
 git -C "$src" ls-files -z --cached --others --exclude-standard \
-  | grep -zv -e '^tests/' -e '^docs/' -e '^scripts/' -e '^CLAUDE\.md$' \
+  | grep -zv -e '^tests/' -e '^docs/' -e '^scripts/' \
   | while IFS= read -r -d '' file; do if [ -e "$src/$file" ]; then printf '%s\0' "$file"; fi; done \
   | sort -zu > "$list"
 rsync -a --from0 --files-from="$list" "$src/" "$dest/"

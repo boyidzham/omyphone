@@ -324,8 +324,6 @@ places or answers a call is asked first):
 
 ## Repository changes
 
-- `CLAUDE.md`: the dependency rule becomes "Python 3 stdlib, `gi`, `notify-send`,
-  `wpctl`, plus `bluez-obex` as an optional package for contacts only".
 - `README.md`: a Contacts section (what it does, the one-time setup).
 - `docs/research.md`: the PBAP results above move from "Not yet tested" to
   "Proven".

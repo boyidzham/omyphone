@@ -43,7 +43,7 @@ omyphone/
 │                        mute and notification logic
 ├── tests/               Python unittest suite + fakes + QML lint
 ├── scripts/dev-sync.sh  copy the working tree into the installed plugin
-├── README.md, LICENSE (MIT), CLAUDE.md
+├── README.md, LICENSE (MIT)
 ```
 
 **The helper holds all the logic. The QML is a thin view.** The helper is a Python
@@ -277,7 +277,7 @@ Manual checklist with a real phone, run once before release:
 - Install once from the local repository: `omarchy plugin add
   ~/Projects/omyphone` (it runs `git clone`) and `omarchy plugin enable omyphone`.
 - `scripts/dev-sync.sh` copies the plugin's own files (what git tracks or would
-  track, minus `tests`, `docs`, `scripts` and `CLAUDE.md`) into
+  track, minus `tests`, `docs` and `scripts`) into
   `~/.config/omarchy/plugins/omyphone/`, deletes anything else there except
   its `.git`, and restarts the shell.
 - Before a real install, reset the installed copy with `git reset --hard` and

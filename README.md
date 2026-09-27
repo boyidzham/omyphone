@@ -147,7 +147,7 @@ tests/run.sh          # all tests, on a private D-Bus bus with fake services; no
 scripts/dev-sync.sh   # copy your working tree into the installed plugin and restart the shell
 ```
 
-See [`CLAUDE.md`](CLAUDE.md) for the project layout and rules.
+The design notes are in [`docs/`](docs/).
 
 ## Licence
 
