@@ -74,9 +74,12 @@ Column {
       id: search
       width: parent.width - refresh.width - parent.spacing
       placeholderText: "Search " + root.all.length + " contacts"
+      rightPadding: horizontalPadding + Border.right(_borderSpec) + clear.width
       Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Escape) {
-          root.closeRequested()
+          // First Esc clears the search, the next one closes the popup.
+          if (search.text !== "") search.clear()
+          else root.closeRequested()
         } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
           root.tabRequested((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 : 1)
         } else if (event.key === Qt.Key_Down) {
@@ -89,6 +92,31 @@ Column {
           return
         }
         event.accepted = true
+      }
+
+      // Clear button, shown only while there is text.
+      MouseArea {
+        id: clear
+        visible: search.text !== ""
+        anchors.right: parent.right
+        anchors.rightMargin: Style.space(4)
+        anchors.verticalCenter: parent.verticalCenter
+        width: Style.space(20)
+        height: Style.space(20)
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+          search.clear()
+          search.forceActiveFocus()
+        }
+
+        Text {
+          anchors.centerIn: parent
+          text: "✕"
+          color: clear.containsMouse ? Color.foreground : Color.muted
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
       }
     }
 
