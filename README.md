@@ -12,7 +12,7 @@ no VoIP account and no cloud: your call never leaves your desk and your phone.
   <img src="docs/images/contacts.png" alt="The Contacts tab with search, synced from the phone" width="300">
 </p>
 <p align="center">
-  <img src="docs/images/incoming-call.png" alt="The incoming call card with Answer and Decline" width="380">
+  <img src="docs/images/incoming-call.png" alt="The incoming call card showing the caller's name, with Answer and Decline" width="420">
 </p>
 
 ## Features
