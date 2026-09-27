@@ -15,7 +15,7 @@ Panel {
   property real now: Date.now()
   readonly property bool ready: phone ? phone.ready : false
   readonly property var call: phone ? phone.currentCall : null
-  readonly property string timerText: call && phone.activeSince > 0 ? Format.duration((now - phone.activeSince) / 1000) : ""
+  readonly property string timerText: call && call.since > 0 ? Format.duration(now / 1000 - call.since) : ""
 
   implicitWidth: row.implicitWidth
   implicitHeight: button.implicitHeight

@@ -25,7 +25,7 @@ class Engine:
         self._retry_s = retry_s
         self._tracked = set()
         self.recents = Recents(recents_path)
-        self.calllog = CallLog(time.time)
+        self.calllog = CallLog(time.time, Path(recents_path).parent / "calls.json")
         self.mic = Mic(state_path=Path(recents_path).parent / "mic-before-call")
         self.notifier = Notifier(lambda tab: self._emit("show", tab=tab))
         self.telephony = None
@@ -72,17 +72,24 @@ class Engine:
             self._emit("muted", muted=self.mic.refresh())
         self._tracked.add(path)
         self.calllog.update(path, number, state)
-        self._emit("call", path=path, number=number, state=state, name=self.directory.lookup(number))
+        self._emit("call", path=path, number=number, state=state, name=self.directory.lookup(number),
+                   since=self.calllog.active_since(path))
 
     def call_removed(self, path, ended):
         self._tracked.discard(path)
-        entry = self.calllog.remove(path)
+        if ended:
+            entry = self.calllog.remove(path)
+        else:
+            self.calllog.park(path)
+            entry = None
         self._emit("call-removed", path=path)
-        if ended and entry is not None:
+        if entry is not None:
             self.recents.add(entry)
             if entry["direction"] == "missed":
                 self.notifier.missed(entry["number"], self.directory.lookup(entry["number"]))
             self._emit_recents()
+        if ended:
+            # Even a call not logged here (first seen mid-call) is in the phone's history.
             self.contacts.call_ended()
         if not self._tracked:
             self.mic.restore()

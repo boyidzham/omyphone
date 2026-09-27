@@ -34,7 +34,8 @@ function recentDetail(entry, nowMs) {
   return parts.join(" · ")
 }
 
-function callStatus(state, activeSince, nowMs) {
+// sinceSeconds: when the call was answered (epoch seconds), 0 if unknown.
+function callStatus(state, sinceSeconds, nowMs) {
   switch (state) {
   case "dialing": return "Calling…"
   case "alerting": return "Ringing…"
@@ -42,7 +43,7 @@ function callStatus(state, activeSince, nowMs) {
   case "waiting": return "Incoming call"
   case "held": return "On hold"
   case "disconnected": return "Call ended"
-  case "active": return activeSince > 0 ? duration((nowMs - activeSince) / 1000) : "Connected"
+  case "active": return sinceSeconds > 0 ? duration(nowMs / 1000 - sinceSeconds) : "Connected"
   }
   return state
 }

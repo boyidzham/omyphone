@@ -42,7 +42,7 @@ Column {
   Text {
     width: parent.width
     horizontalAlignment: Text.AlignHCenter
-    text: root.call ? Format.callStatus(root.call.state, root.phone ? root.phone.activeSince : 0, root.now) : ""
+    text: root.call ? Format.callStatus(root.call.state, root.call.since, root.now) : ""
     color: Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body

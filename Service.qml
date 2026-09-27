@@ -17,8 +17,9 @@ Item {
 
   property var phone: ({ found: false, address: "", name: "", connected: false, powered: false })
   property var gateways: []
+  // Each call: { path, number, state, name, since }. since is when it was
+  // answered (epoch seconds), 0 before that or when unknown.
   property var calls: []
-  property real activeSince: 0
   property bool muted: false
   property var recents: []
   property var missed: []
@@ -113,16 +114,14 @@ Item {
   function upsertCall(msg) {
     var next = calls.filter(function(c) { return c.path !== msg.path })
     var index = calls.findIndex(function(c) { return c.path === msg.path })
-    var call = { path: msg.path, number: msg.number, state: msg.state, name: msg.name || "" }
+    var call = { path: msg.path, number: msg.number, state: msg.state, name: msg.name || "", since: msg.since || 0 }
     if (index < 0) next.push(call)
     else next.splice(index, 0, call)
     calls = next
-    if (msg.state === "active" && activeSince === 0) activeSince = Date.now()
   }
 
   function removeCall(path) {
     calls = calls.filter(function(c) { return c.path !== path })
-    if (calls.length === 0) activeSince = 0
   }
 
   function showPopup(tab) {
@@ -155,7 +154,6 @@ Item {
     onExited: function(exitCode, exitStatus) {
       root.gateways = []
       root.calls = []
-      root.activeSince = 0
       restartTimer.interval = root.nextRestartDelay()
       restartTimer.restart()
     }

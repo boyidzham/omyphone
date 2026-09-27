@@ -124,9 +124,37 @@ class HelperCallTests(unittest.TestCase):
         self.assertEqual(self.helper.wait_for(is_event("error"))["message"], "No active call")
 
     def test_existing_call_reported_on_start(self):
+        # Already going (say the phone connected mid-call): its direction and
+        # start are unknown, so no timer and no recents entry is made up.
         (path,) = self.fake.control("AddCall", "(ss)", ("0123", "active"), "(o)")
         self.start_helper()
-        self.helper.wait_for(is_event("call", path=path, state="active"))
+        self.assertEqual(self.helper.wait_for(is_event("call", path=path, state="active"))["since"], 0)
+        self.fake.control("RemoveCall", "(o)", (path,))
+        self.helper.wait_for(is_event("call-removed", path=path))
+        self.helper.send({"cmd": "tones", "digits": "1"})  # a round trip, so a recents write would be done
+        wait_until(lambda: "SendTones 1" in self.fake.log())
+        self.assertFalse((self.dir / "state" / "omyphone" / "recents.json").exists())
+
+    def test_call_carries_when_it_was_answered(self):
+        self.start_helper()
+        path = self.incoming()
+        before = time.time()
+        self.fake.control("SetState", "(os)", (path, "active"))
+        since = self.helper.wait_for(is_event("call", path=path, state="active"))["since"]
+        self.assertTrue(before - 1 <= since <= time.time() + 1, since)
+
+    def test_helper_restart_mid_call_keeps_the_call(self):
+        self.start_helper()
+        path = self.incoming()
+        self.fake.control("SetState", "(os)", (path, "active"))
+        since = self.helper.wait_for(is_event("call", path=path, state="active"))["since"]
+        self.helper.close()
+        self.start_helper()
+        self.assertEqual(self.helper.wait_for(is_event("call", path=path, state="active"))["since"], since)
+        self.fake.control("RemoveCall", "(o)", (path,))
+        entry = self.last_recent()
+        self.assertEqual((entry["direction"], entry["number"]), ("incoming", "0123"))
+        self.assertFalse((self.dir / "state" / "omyphone" / "calls.json").exists())
 
     def test_gateway_removed_mid_call_removes_calls(self):
         self.start_helper()
@@ -185,6 +213,7 @@ class HelperCallTests(unittest.TestCase):
         self.start_helper()
         path = self.incoming()
         self.fake.control("SetState", "(os)", (path, "active"))
+        since = self.helper.wait_for(is_event("call", path=path, state="active"))["since"]
         self.fake.stop()
         self.helper.wait_for(is_event("call-removed", path=path))
         self.helper.wait_for(is_event("gateway", present=False))
@@ -192,8 +221,12 @@ class HelperCallTests(unittest.TestCase):
         self.fake.control("AddGateway")
         self.helper.wait_for(is_event("gateway", present=True))
         (again,) = self.fake.control("AddCall", "(ss)", ("0123", "active"), "(o)")
-        self.helper.wait_for(is_event("call", path=again, state="active"))
+        self.assertEqual(again, path)
+        # The same call again: its timer and direction carry on.
+        self.assertEqual(self.helper.wait_for(is_event("call", path=again, state="active"))["since"], since)
         self.assertFalse((self.dir / "state" / "omyphone" / "recents.json").exists())
+        self.fake.control("RemoveCall", "(o)", (again,))
+        self.assertEqual(self.last_recent()["direction"], "incoming")
 
     def test_helper_exits_when_stdin_closes(self):
         self.start_helper()

@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from omyphone.calllog import CallLog
 
@@ -62,6 +64,82 @@ class CallLogTests(unittest.TestCase):
     def test_unknown_path(self):
         self.log.mark_declined(P)
         self.assertIsNone(self.log.remove(P))
+
+    def test_declined_can_be_taken_back(self):
+        self.log.update(P, "0123", "incoming")
+        self.log.mark_declined(P)
+        self.log.mark_declined(P, False)  # the hangup failed and the call rang out
+        self.assertEqual(self.log.remove(P)["direction"], "missed")
+
+    def test_active_since(self):
+        self.log.update(P, "0123", "dialing")
+        self.assertEqual(self.log.active_since(P), 0)
+        self.clock.t += 5
+        self.log.update(P, "0123", "active")
+        self.assertEqual(self.log.active_since(P), 1005)
+
+    def test_call_first_seen_mid_call_is_not_guessed(self):
+        # Already going when first seen: direction and start are unknown, so
+        # there is no timer and nothing is logged.
+        self.log.update(P, "0123", "active")
+        self.assertEqual(self.log.active_since(P), 0)
+        self.assertIsNone(self.log.remove(P))
+
+    def test_parked_call_is_picked_up_again(self):
+        # The telephony service restarted: the call vanished, then came back.
+        self.log.update(P, "0123", "incoming")
+        self.clock.t += 5
+        self.log.update(P, "0123", "active")
+        self.log.park(P)
+        self.clock.t += 10
+        self.log.update(P, "0123", "active")
+        self.assertEqual(self.log.active_since(P), 1005)
+        self.clock.t += 20
+        self.assertEqual(self.log.remove(P),
+                         {"number": "0123", "direction": "incoming", "start": 1000, "duration": 30})
+
+    def test_parked_path_used_by_a_new_call_starts_fresh(self):
+        self.log.update(P, "0123", "incoming")
+        self.log.update(P, "0123", "active")
+        self.log.park(P)
+        self.clock.t += 100
+        self.log.update(P, "0199", "dialing")
+        self.assertEqual(self.log.remove(P)["start"], 1100)
+
+
+class SavedCallLogTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / "omyphone" / "calls.json"
+        self.clock = Clock()
+
+    def test_call_survives_a_helper_restart(self):
+        log = CallLog(self.clock, self.path)
+        log.update(P, "0123", "incoming")
+        self.clock.t += 5
+        log.update(P, "0123", "active")
+        again = CallLog(self.clock, self.path)  # a new helper, mid-call
+        again.update(P, "0123", "active")
+        self.assertEqual(again.active_since(P), 1005)
+        self.clock.t += 60
+        self.assertEqual(again.remove(P)["direction"], "incoming")
+
+    def test_file_goes_when_the_last_call_ends(self):
+        log = CallLog(self.clock, self.path)
+        log.update(P, "0123", "dialing")
+        self.assertTrue(self.path.exists())
+        self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
+        log.remove(P)
+        self.assertFalse(self.path.exists())
+
+    def test_corrupt_file_is_ignored(self):
+        self.path.parent.mkdir(parents=True)
+        for text in ("not json", "[]", '{"x": 1}', '{"%s": {"number": 5}}' % P):
+            self.path.write_text(text)
+            log = CallLog(self.clock, self.path)
+            log.update(P, "0123", "active")
+            self.assertIsNone(log.remove(P))
 
 
 if __name__ == "__main__":
