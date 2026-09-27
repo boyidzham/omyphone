@@ -1,5 +1,7 @@
 import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 
 from omyphone.mic import SOURCE, Mic
 
@@ -44,6 +46,18 @@ class MicTests(unittest.TestCase):
         wpctl = FakeWpctl()
         Mic(wpctl).restore()
         self.assertEqual(wpctl.calls, [])
+
+    def test_saved_state_survives_a_helper_restart(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "omyphone" / "mic-before-call"
+            wpctl = FakeWpctl(muted=False)
+            Mic(wpctl, state).set_muted(True)
+            again = Mic(wpctl, state)  # a new helper, mid-call
+            again.set_muted(False)
+            again.set_muted(True)
+            again.restore()
+            self.assertFalse(wpctl.muted)
+            self.assertFalse(state.exists())
 
     def test_missing_wpctl_does_not_raise(self):
         def broken(argv, **kwargs):

@@ -5,6 +5,7 @@ when stdin closes, so it goes away with the shell that started it.
 """
 import argparse
 import os
+import signal
 import sys
 
 import gi
@@ -51,16 +52,28 @@ def main(argv=None):
     def on_line(stream, result):
         try:
             line, _length = stream.read_line_finish_utf8(result)
-        except GLib.Error:
-            line = None
-        if line is None:
+        except GLib.Error as error:
+            if error.domain != GLib.quark_to_string(GLib.convert_error_quark()):
+                loop.quit()
+                return
+            emit("error", cmd="", message="invalid UTF-8")  # the bad line is consumed
+            line = ""
+        if line is None:  # EOF: the shell went away
             loop.quit()
             return
         if line.strip():
-            engine.handle_line(line)
+            try:
+                engine.handle_line(line)
+            except Exception as error:  # never stop reading commands
+                print(f"omyphone: command failed: {error!r}", file=sys.stderr)
+                emit("error", cmd="", message="invalid command")
         stream.read_line_async(GLib.PRIORITY_DEFAULT, None, on_line)
 
     stdin.read_line_async(GLib.PRIORITY_DEFAULT, None, on_line)
+    # A shell restart stops the helper with SIGTERM: quit cleanly so the mic is
+    # restored and waiting notifications are closed.
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signum, lambda: loop.quit() or GLib.SOURCE_REMOVE)
     loop.run()
     engine.stop()
     return 0

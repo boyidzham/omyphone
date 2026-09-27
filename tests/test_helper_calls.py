@@ -160,6 +160,26 @@ class HelperCallTests(unittest.TestCase):
         self.helper.send({"cmd": "dial", "number": "999"})
         self.helper.wait_for(is_event("call", number="999"))
 
+    def test_sigterm_mid_call_restores_the_mic(self):
+        self.start_helper()
+        path = self.incoming()
+        self.fake.control("SetState", "(os)", (path, "active"))
+        self.helper.send({"cmd": "mute", "on": True})
+        self.assertTrue(self.helper.wait_for(is_event("muted"))["muted"])
+        self.helper.proc.terminate()
+        self.helper.proc.wait(5)
+        self.assertFalse((self.dir / "mic-muted").exists())
+
+    def test_unexpected_input_error_keeps_reading_commands(self):
+        self.start_helper()
+        self.helper.send("[" * 200000)
+        self.helper.wait_for(is_event("error"))
+        self.helper.proc.stdin.buffer.write(b"\xff\xfe\n")
+        self.helper.proc.stdin.flush()
+        self.assertEqual(self.helper.wait_for(is_event("error"))["message"], "invalid UTF-8")
+        self.helper.send({"cmd": "tones", "digits": "5"})
+        wait_until(lambda: "SendTones 5" in self.fake.log())
+
     def test_telephony_restart_mid_call(self):
         self.start_helper()
         path = self.incoming()

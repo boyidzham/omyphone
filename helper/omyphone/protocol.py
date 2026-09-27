@@ -7,9 +7,10 @@ calls.
 import json
 import re
 
-NUMBER_RE = re.compile(r"^\+?[0-9*#]{1,32}$")
-TONES_RE = re.compile(r"^[0-9*#ABCD]{1,32}$")
-CALL_RE = re.compile(r"^/org/pipewire/Telephony/ag[0-9]+/call[0-9]+$")
+NUMBER_RE = re.compile(r"\+?[0-9*#]{1,32}")
+TONES_RE = re.compile(r"[0-9*#ABCD]{1,32}")
+CALL_RE = re.compile(r"/org/pipewire/Telephony/ag[0-9]+/call[0-9]+")
+# Matched with fullmatch: "$" would also accept a trailing newline.
 _FORMATTING = str.maketrans("", "", " -()")
 
 
@@ -31,17 +32,17 @@ def parse_command(line):
     if cmd == "dial":
         number = msg.get("number")
         number = number.translate(_FORMATTING) if isinstance(number, str) else ""
-        if not NUMBER_RE.match(number):
+        if not NUMBER_RE.fullmatch(number):
             raise ProtocolError(cmd, "invalid number")
         return {"cmd": cmd, "number": number}
     if cmd in ("answer", "hangup", "decline"):
         call = msg.get("call")
-        if not isinstance(call, str) or not CALL_RE.match(call):
+        if not isinstance(call, str) or not CALL_RE.fullmatch(call):
             raise ProtocolError(cmd, "invalid call path")
         return {"cmd": cmd, "call": call}
     if cmd == "tones":
         digits = msg.get("digits")
-        if not isinstance(digits, str) or not TONES_RE.match(digits):
+        if not isinstance(digits, str) or not TONES_RE.fullmatch(digits):
             raise ProtocolError(cmd, "invalid tones")
         return {"cmd": cmd, "digits": digits}
     if cmd == "mute":

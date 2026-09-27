@@ -38,6 +38,11 @@ class ParseCommandTests(unittest.TestCase):
         self.assertEqual(parse_command('{"cmd":"mute","on":true}'), {"cmd": "mute", "on": True})
         self.assertRejected('{"cmd":"mute","on":1}', "mute", "invalid mute value")
 
+    def test_trailing_newline_is_rejected(self):
+        self.assertRejected(json.dumps({"cmd": "dial", "number": "123\n"}), "dial", "invalid number")
+        self.assertRejected(json.dumps({"cmd": "tones", "digits": "1\n"}), "tones", "invalid tones")
+        self.assertRejected(json.dumps({"cmd": "answer", "call": CALL + "\n"}), "answer", "invalid call path")
+
     def test_bad_input(self):
         self.assertRejected("not json", "", "invalid JSON")
         self.assertRejected("[1,2]", "", "missing cmd")

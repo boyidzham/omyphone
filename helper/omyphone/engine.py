@@ -1,5 +1,6 @@
 """Connects telephony, recents, mic and notifications, and handles commands."""
 import time
+from pathlib import Path
 
 from .bluez import PhoneLink
 from .calllog import CallLog
@@ -21,7 +22,7 @@ class Engine:
         self._tracked = set()
         self.recents = Recents(recents_path)
         self.calllog = CallLog(time.time)
-        self.mic = Mic()
+        self.mic = Mic(state_path=Path(recents_path).parent / "mic-before-call")
         self.notifier = Notifier(lambda tab: self._emit("show", tab=tab))
         self.telephony = None
         self.link = None
