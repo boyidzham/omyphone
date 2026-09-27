@@ -23,7 +23,7 @@ phone (HFP Audio Gateway)
 BlueZ ──► PipeWire bluez5 plugin (native HFP backend, PC = Hands-Free)
             ├─ D-Bus: org.pipewire.Telephony  → call control
             └─ audio nodes bluez_input / bluez_output → routed to default mic/speaker
-BlueZ obexd ──► PBAP (contacts, call history)   [not yet tested]
+BlueZ obexd ──► PBAP (contacts, call history)   [proven 2026-09-28]
 ```
 
 ## Test machine
@@ -73,6 +73,20 @@ PipeWire 1.4 or newer is needed for `org.pipewire.Telephony`.
    Hangup, GetProperties). Calling `org.ofono.VoiceCall.Answer` on the call answered
    it without touching the phone, and the state went to `active`. Audio was clear
    both ways. When the caller hung up, the call ended on the PC too.
+6. **Contacts and call history over PBAP.** Tested on 2026-09-28 with `bluez-obex`
+   5.87. `org.bluez.obex` is D-Bus activatable on the session bus as soon as the
+   package is installed. `Client1.CreateSession(<address>, {Target: "PBAP"})`
+   connected in under a second. obexd removes a session when the D-Bus client that
+   created it disconnects, so a one-shot `busctl` call cannot use it; a long-running
+   process must own the session. The iPhone offers "Sync Contacts" (Settings >
+   Bluetooth > (i)) only after the PC has asked once; until then every folder has
+   size 0 and pulls empty, with no error. Once on, `pb`, `cch`, `ich`, `och` and
+   `mch` all pulled in 0.6 to 1.2 s each, history folders capped at 100 entries.
+   vCard 3.0 fields seen: `FN`, `N`, `TEL` (with or without `TYPE=CELL`), `EMAIL`,
+   `ORG`, `URL`, `PHOTO` (base64), `UID`; history cards add
+   `X-IRMC-CALL-DATETIME;DIALED|MISSED|RECEIVED:YYYYMMDDTHHMMSS`. Numbers come in
+   mixed formats (`+60…`, `012 345 6789`, `+60 12-345 6789`, brackets), and about a
+   third of history entries have no name.
 
 ## Gotchas found
 
@@ -93,6 +107,8 @@ PipeWire 1.4 or newer is needed for `org.pipewire.Telephony`.
   to retry `org.bluez.Device1.Connect` while the phone is paired but not connected.
   One retry right after a reconnect failed with `br-connection-page-timeout` and the
   next one worked, so retries need a short back-off.
+- PipeWire 1.6.8 exposes a `Name` property on calls, but its HFP code parses only
+  the number from `+CLIP`, so `Name` is always empty. Caller names need PBAP.
 
 ## v1 checklist (2026-09-28)
 
@@ -129,10 +145,6 @@ Surprises and changes made:
 ## Not yet tested
 
 - DTMF (`SendTones`) during a call.
-- Contacts and call history over PBAP. Needs `obexd`, which is in the `bluez-obex`
-  package (not installed on the test machine). On iPhone, "Sync Contacts" must be on
-  in the Bluetooth settings for the PC. Whether iPhone exposes call history over PBAP
-  is unverified.
 - SMS over MAP.
 - Android phones on this code path (HFP is standard, and quattro-bt-phone below
   reports a Galaxy S25 FE working).

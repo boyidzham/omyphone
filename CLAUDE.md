@@ -13,7 +13,7 @@ Read these first:
 
 - `helper/`: Python helper (stdlib + PyGObject only). **All logic lives here**:
   D-Bus to `org.pipewire.Telephony` (session bus) and `org.bluez` (system bus),
-  recents, mute and notifications. It speaks JSON lines: commands on stdin, events
+  recents, mute and notifications, contacts over PBAP (`org.bluez.obex`). It speaks JSON lines: commands on stdin, events
   on stdout.
 - `Service.qml`: the plugin's `service` kind. It runs the helper and holds its
   state.
@@ -40,7 +40,8 @@ never touch the real desktop bus.
 - Never edit `/usr/share/omarchy/` (it is overwritten by updates). Reading the shell
   source there is the way to check `qs.Ui` / `qs.Commons` APIs.
 - No dependencies beyond what Omarchy installs: Python 3 stdlib, `gi`, `notify-send`,
-  `wpctl`. No pip packages, and no pytest.
+  `wpctl`. The one exception is `bluez-obex`, optional and for contacts only: without
+  it, everything else must keep working. No pip packages, and no pytest.
 - No symlinks in the plugin folder, because `omarchy plugin validate` rejects them.
 - The helper must never crash on input. Every failure becomes an `error` event or
   a stderr line.
@@ -86,3 +87,8 @@ so it is harmless. With Num Lock off, numpad keys act as arrows, as in any app.
   not take the toast off screen. That is why incoming calls use our own card.
 - Quickshell has no generic D-Bus client, and `Quickshell.Bluetooth` does not
   expose UUIDs. That is why the helper exists.
+- `bluez-obex` 5.87 is installed on the dev machine (for contacts). The test bus uses
+  `tests/session.conf`, which has no service directories, so tests never start the
+  real obexd.
+- The iPhone shows "Sync Contacts" (Settings > Bluetooth > (i)) only after the PC has
+  asked for contacts once. Until it is on, every PBAP pull is empty, with no error.
