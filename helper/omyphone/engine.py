@@ -2,6 +2,7 @@
 import json
 import time
 
+from .bluez import PhoneLink
 from .calllog import CallLog
 from .mic import Mic
 from .notifier import Notifier
@@ -24,11 +25,13 @@ class Engine:
         self.mic = Mic()
         self.notifier = Notifier(self._on_notification_action, session_bus)
         self.telephony = None
+        self.link = None
 
     def start(self):
         self._emit("recents", entries=self.recents.entries)
         self._emit("muted", muted=False)
         self.telephony = Telephony(self._session_bus, self)
+        self.link = PhoneLink(self._bluez_bus, self, self._address, poll_s=self._poll_s, retry_s=self._retry_s)
 
     def stop(self):
         self.notifier.close_all()
