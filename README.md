@@ -9,6 +9,9 @@ no VoIP account and no cloud: your call never leaves your desk and your phone.
 <p align="center">
   <img src="docs/images/popup.png" alt="The OMyPhone popup with the keypad" width="300">
   &nbsp;&nbsp;
+  <img src="docs/images/contacts.png" alt="The Contacts tab with search, synced from the phone" width="300">
+</p>
+<p align="center">
   <img src="docs/images/incoming-call.png" alt="The incoming call card with Answer and Decline" width="380">
 </p>
 
