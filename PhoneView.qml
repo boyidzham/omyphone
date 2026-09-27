@@ -29,6 +29,23 @@ Column {
     function onShowRequested(tab) { root.tab = tab }
   }
 
+  PanelHero {
+    width: parent.width
+    title: "OMyPhone"
+    meta: !root.phone || !root.phone.phone.found ? "No phone paired"
+      : root.ready ? root.phone.phone.name + " · Connected"
+      : root.phone.phone.name + " · Not connected"
+    iconOpacity: root.ready ? 1.0 : 0.5
+    iconComponent: Component {
+      Text {
+        text: "󰏲"
+        color: Color.foreground
+        font.family: Style.font.family
+        font.pixelSize: Style.font.display
+      }
+    }
+  }
+
   Text {
     visible: !root.ready
     width: parent.width
