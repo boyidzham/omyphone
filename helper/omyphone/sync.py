@@ -55,6 +55,7 @@ class ContactsSync:
         self._busy = False
         self._pending = None          # "full" or "history", run after the current sync
         self._retry_until = 0.0
+        self._retry_scheduled = False
         self._install_until = 0.0
         self._install_polling = False
 
@@ -143,14 +144,16 @@ class ContactsSync:
             cards = vcard.parse_cards(texts.get("pb", ""))
             if not cards:
                 self._set("needs-permission")
-                if self._clock() < self._retry_until:
-                    self._schedule(self._retry_s, lambda: self._request("full"))
+                if self._clock() < self._retry_until and not self._retry_scheduled:
+                    self._retry_scheduled = True
+                    self._schedule(self._retry_s, self._run_retry)
             else:
                 # The first card is the phone owner's own card (PBAP handle 0).
                 self.contacts.contacts = vcard.contacts_from_cards(cards[1:])
                 self.contacts.synced = now
                 self.contacts.save()
                 self._retry_until = 0.0
+                self._retry_scheduled = False
                 self._listener.contacts_changed()
                 self._set("ready")
         calls = vcard.history_from_cards(vcard.parse_cards(texts.get("cch", "")))
@@ -167,6 +170,10 @@ class ContactsSync:
         print(f"omyphone: contacts sync failed: {message}", file=sys.stderr)
         self._set("error", message)
         self._run_pending()
+
+    def _run_retry(self):
+        self._retry_scheduled = False
+        self._request("full")
 
     def _run_pending(self):
         kind, self._pending = self._pending, None

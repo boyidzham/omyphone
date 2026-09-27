@@ -131,6 +131,16 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(self.state, "ready")
         self.assertEqual(self.scheduled, [])
 
+    def test_repeated_empty_syncs_schedule_only_one_retry(self):
+        self.book.results = [EMPTY, EMPTY, EMPTY, FULL]
+        sync = self.make()
+        sync.user_sync()
+        sync.user_sync()
+        sync.user_sync()
+        self.assertEqual(len(self.scheduled), 1)
+        self.run_scheduled()
+        self.assertEqual(self.state, "ready")
+
     def test_retries_stop_after_the_window(self):
         self.make().user_sync()
         self.now += 181
