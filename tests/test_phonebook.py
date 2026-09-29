@@ -129,6 +129,18 @@ class PhonebookTests(unittest.TestCase):
         self.assertIn("FN:Ali Ahmad", texts["pb"])
         self.assertEqual(self.fake.log().count("RemoveSession"), 1)
 
+    def test_oversized_folder_fails_and_keeps_the_others(self):
+        self.start_fake()
+        fixtures = Path(__file__).parent / "fixtures"
+        # Between the two sizes (the fake adds a CR to each line): cch fits, pb does not.
+        limit = 2 * (fixtures / "cch.vcf").stat().st_size
+        self.assertLess(limit, (fixtures / "pb.vcf").stat().st_size)
+        self.book = Phonebook(bus(), self.tmpdir, timeout_s=3.0, poll_ms=20, max_bytes=limit)
+        texts, errors = self.pull(("pb", "cch"))
+        self.assertIn("cch", texts)
+        self.assertEqual(errors, {"pb": "The phone sent too much data for pb"})
+        self.assertEqual(list(self.tmpdir.glob("*.vcf")), [])
+
     def test_no_obexd_is_an_error_not_a_hang(self):
         texts, errors = self.pull()
         self.assertEqual(texts, {})

@@ -21,6 +21,7 @@ OBEX_PATH = "/org/bluez/obex"
 CLIENT = "org.bluez.obex.Client1"
 PBAP = "org.bluez.obex.PhonebookAccess1"
 TRANSFER = "org.bluez.obex.Transfer1"
+MAX_BYTES = 128 * 1024 * 1024  # per folder; far above a real phonebook, even with photos
 
 
 def default_tmpdir():
@@ -39,11 +40,12 @@ def _later(ms, fn):
 
 
 class Phonebook:
-    def __init__(self, bus, tmpdir, timeout_s=60.0, poll_ms=200):
+    def __init__(self, bus, tmpdir, timeout_s=60.0, poll_ms=200, max_bytes=MAX_BYTES):
         self.bus = bus
         self.tmpdir = Path(tmpdir)
         self.timeout_s = timeout_s
         self.poll_ms = poll_ms
+        self.max_bytes = max_bytes
 
     def available(self, callback):
         """callback(True) when obexd is running or can be started on demand."""
@@ -69,7 +71,7 @@ class _Pull:
     """One sync: CreateSession, then Select + PullAll per folder, then RemoveSession."""
 
     def __init__(self, book, address, folders, on_done):
-        self.bus, self.tmpdir, self.poll_ms = book.bus, book.tmpdir, book.poll_ms
+        self.bus, self.tmpdir, self.poll_ms, self.max_bytes = book.bus, book.tmpdir, book.poll_ms, book.max_bytes
         self.address, self.folders = address, folders
         self.on_done = on_done
         self.session = None
@@ -156,11 +158,16 @@ class _Pull:
 
     def _read(self, folder, target):
         try:
-            self.texts[folder] = target.read_bytes().decode("utf-8", "replace")
+            with open(target, "rb") as file:
+                data = file.read(self.max_bytes + 1)
             target.unlink()
         except OSError as error:
             self._folder_failed(f"Could not read {target.name}: {error.strerror}")
             return
+        if len(data) > self.max_bytes:
+            self._folder_failed(f"The phone sent too much data for {folder}")
+            return
+        self.texts[folder] = data.decode("utf-8", "replace")
         self.folders.pop(0)
         self._next()
 
