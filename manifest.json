@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "omyphone",
   "name": "OMyPhone",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Boyidzham",
   "license": "MIT",
   "description": "Make and take phone calls from the desktop through your Bluetooth-paired phone",
