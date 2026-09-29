@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import qs.Commons
 
 // omyphone background service: one instance, runs while the plugin is enabled.
 // Starts helper/omyphone-helper, keeps the phone and call state it reports, and
@@ -54,6 +55,11 @@ Item {
   // BarWidget.qml: windows need the shell's object tree, which third-party
   // services are kept out of.
   property string ringScreen: ""
+
+  // Answer buttons are the theme's green (Decline and Hang up use Color.urgent,
+  // its red). The shell only shares red, so green is read from the theme's
+  // colors.toml, again whenever the shell's colors change (a theme switch).
+  property color answerColor: "#4caf50"
   onRingingCallChanged: ringScreen = ringingCall ? (ringScreen || pickRingScreen()) : ""
 
   function pickRingScreen() {
@@ -163,6 +169,23 @@ Item {
       restartTimer.interval = root.nextRestartDelay()
       restartTimer.restart()
     }
+  }
+
+  FileView {
+    id: themeColors
+    path: Color.currentThemePath + "/colors.toml"
+    printErrors: false
+    onLoaded: {
+      var match = text().match(/^\s*(?:green|color2)\s*=\s*["']?(#[0-9A-Fa-f]{6})/m)
+      if (match) root.answerColor = match[1]
+    }
+  }
+
+  Connections {
+    target: Color
+    function onBackgroundChanged() { themeColors.reload() }
+    function onUrgentChanged() { themeColors.reload() }
+    function onAccentChanged() { themeColors.reload() }
   }
 
   Timer {

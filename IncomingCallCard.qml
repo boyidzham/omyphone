@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
@@ -25,33 +24,6 @@ PanelWindow {
   readonly property int barSize: bar && bar.barSize > 0
     ? bar.barSize
     : (barPosition === "left" || barPosition === "right" ? Style.bar.sizeVertical : Style.bar.sizeHorizontal)
-
-  // Answer is the theme's green, Decline its red. The shell only shares red
-  // (Color.urgent), so green is read from the theme's colors.toml, again
-  // whenever the shell's colors change (a theme switch).
-  property color answerColor: "#4caf50"
-  readonly property color declineColor: Color.urgent
-
-  function textOn(fill) {
-    return 0.299 * fill.r + 0.587 * fill.g + 0.114 * fill.b > 0.6 ? "#111111" : "#ffffff"
-  }
-
-  FileView {
-    id: themeColors
-    path: Color.currentThemePath + "/colors.toml"
-    printErrors: false
-    onLoaded: {
-      var match = text().match(/^\s*(?:green|color2)\s*=\s*["']?(#[0-9A-Fa-f]{6})/m)
-      if (match) root.answerColor = match[1]
-    }
-  }
-
-  Connections {
-    target: Color
-    function onBackgroundChanged() { themeColors.reload() }
-    function onUrgentChanged() { themeColors.reload() }
-    function onAccentChanged() { themeColors.reload() }
-  }
 
   screen: barScreen
   visible: call !== null && barScreen !== null && service.ringScreen === barScreen.name
@@ -133,18 +105,14 @@ PanelWindow {
         Layout.topMargin: Style.space(8)
         spacing: Style.space(8)
 
-        Button {
+        CallButton {
           text: "Answer"
-          background: root.answerColor
-          foreground: root.textOn(root.answerColor)
-          color: hot ? Qt.lighter(root.answerColor, 1.15) : root.answerColor
+          fill: root.service ? root.service.answerColor : Color.accent
           onClicked: if (root.call) root.service.answer(root.call.path)
         }
-        Button {
+        CallButton {
           text: "Decline"
-          background: root.declineColor
-          foreground: root.textOn(root.declineColor)
-          color: hot ? Qt.lighter(root.declineColor, 1.15) : root.declineColor
+          fill: Color.urgent
           onClicked: if (root.call) root.service.decline(root.call.path)
         }
       }

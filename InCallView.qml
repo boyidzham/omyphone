@@ -63,15 +63,16 @@ Column {
     anchors.horizontalCenter: parent.horizontalCenter
     spacing: Style.space(6)
 
-    Button {
+    CallButton {
       visible: root.ringing
       text: "Answer"
-      active: true
+      fill: root.phone ? root.phone.answerColor : Color.accent
       onClicked: root.phone.answer(root.call.path)
     }
-    Button {
+    CallButton {
       visible: root.ringing
       text: "Decline"
+      fill: Color.urgent
       onClicked: root.phone.decline(root.call.path)
     }
     Button {
@@ -86,9 +87,10 @@ Column {
       selected: root.showKeypad
       onClicked: root.showKeypad = !root.showKeypad
     }
-    Button {
+    CallButton {
       visible: !root.ringing
       text: "Hang up"
+      fill: Color.urgent
       onClicked: root.phone.hangup(root.call.path)
     }
   }
