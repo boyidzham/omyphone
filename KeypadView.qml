@@ -68,10 +68,11 @@ Column {
       tooltipText: "Delete"
       onClicked: root.backspace()
     }
-    Button {
+    CallButton {
       width: Style.space(72)
       text: "Call"
-      active: root.number !== ""
+      fill: root.phone ? root.phone.answerColor : Color.accent
+      filled: root.number !== ""
       onClicked: root.call()
     }
   }
