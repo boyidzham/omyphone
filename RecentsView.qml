@@ -18,6 +18,7 @@ Column {
     width: parent.width
     horizontalAlignment: Text.AlignHCenter
     text: root.missedOnly ? "No missed calls" : "No recent calls"
+    textFormat: Text.PlainText
     color: Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body
@@ -50,6 +51,7 @@ Column {
         anchors.leftMargin: Style.space(8)
         anchors.verticalCenter: parent.verticalCenter
         text: row.missed ? "󰏺" : row.modelData.direction === "incoming" ? "󰏷" : "󰏻"
+        textFormat: Text.PlainText
         color: row.missed ? Color.urgent : Color.muted
         font.family: Style.font.family
         font.pixelSize: Style.font.title
@@ -65,6 +67,7 @@ Column {
           width: parent.width
           elide: Text.ElideRight
           text: Format.title(row.modelData)
+          textFormat: Text.PlainText
           color: row.missed ? Color.urgent : Color.foreground
           font.family: Style.font.family
           font.pixelSize: Style.font.body
@@ -74,6 +77,7 @@ Column {
           elide: Text.ElideRight
           text: (row.modelData.name ? Format.displayNumber(row.modelData.number) + " · " : "")
             + Format.recentDetail(row.modelData, root.now)
+          textFormat: Text.PlainText
           color: row.missed ? Color.urgent : Color.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption

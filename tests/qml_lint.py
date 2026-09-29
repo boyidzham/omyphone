@@ -31,6 +31,16 @@ with tempfile.TemporaryDirectory(prefix="omyphone-qml-") as directory:
                 for f in report["files"] for w in f["warnings"]
                 if w["type"] == "error" or w.get("id") in
                 ("import", "unresolved-type", "inheritance-cycle", "required", "syntax")]
+    # Text shows data from the phone (names, numbers, errors): never let it parse markup.
+    for path in files:
+        lines = Path(path).read_text().splitlines()
+        for number, line in enumerate(lines):
+            if line.strip() != "Text {":
+                continue
+            indent = line[:len(line) - len(line.lstrip())]
+            end = next(i for i in range(number + 1, len(lines)) if lines[i] == indent + "}")
+            if not any(l.strip().startswith("textFormat: Text.PlainText") for l in lines[number:end]):
+                failures.append(f"{Path(path).name}:{number + 1}: Text without textFormat: Text.PlainText")
     if failures:
         sys.exit("\n".join(failures))
 print(f"qml_lint: ok ({len(files)} files)")

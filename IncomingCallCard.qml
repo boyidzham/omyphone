@@ -60,6 +60,7 @@ PanelWindow {
       Text {
         Layout.fillWidth: true
         text: "Incoming call"
+        textFormat: Text.PlainText
         color: Color.notifications.text
         font.family: "Liberation Sans"
         font.pixelSize: Style.font.title
@@ -69,6 +70,7 @@ PanelWindow {
       Text {
         Layout.fillWidth: true
         text: Format.title(root.call)
+        textFormat: Text.PlainText
         elide: Text.ElideRight
         color: Qt.darker(Color.notifications.text, 1.15)
         font.family: "Liberation Sans"
@@ -79,6 +81,7 @@ PanelWindow {
         Layout.fillWidth: true
         visible: root.call !== null && root.call.name !== ""
         text: root.call ? Format.displayNumber(root.call.number) : ""
+        textFormat: Text.PlainText
         elide: Text.ElideRight
         color: Qt.darker(Color.notifications.text, 1.4)
         font.family: "Liberation Sans"
@@ -91,6 +94,7 @@ PanelWindow {
         visible: root.service !== null && root.service.lastError !== ""
           && (root.service.lastErrorCmd === "answer" || root.service.lastErrorCmd === "decline")
         text: root.service ? root.service.lastError : ""
+        textFormat: Text.PlainText
         wrapMode: Text.Wrap
         color: Color.urgent
         font.family: "Liberation Sans"

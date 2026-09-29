@@ -48,6 +48,7 @@ Column {
       horizontalAlignment: Text.AlignHCenter
       wrapMode: Text.Wrap
       text: Format.contactsSetupText(root.status)
+      textFormat: Text.PlainText
       color: root.status.state === "error" ? Color.urgent : Color.muted
       font.family: Style.font.family
       font.pixelSize: Style.font.body
@@ -114,6 +115,7 @@ Column {
         Text {
           anchors.centerIn: parent
           text: "✕"
+          textFormat: Text.PlainText
           color: clear.containsMouse ? Color.foreground : Color.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
@@ -134,6 +136,7 @@ Column {
     width: parent.width
     horizontalAlignment: Text.AlignHCenter
     text: "No matches"
+    textFormat: Text.PlainText
     color: Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body
@@ -182,6 +185,7 @@ Column {
           width: parent.width
           elide: Text.ElideRight
           text: Format.title(row.modelData)
+          textFormat: Text.PlainText
           color: Color.foreground
           font.family: Style.font.family
           font.pixelSize: Style.font.body
@@ -191,6 +195,7 @@ Column {
           elide: Text.ElideRight
           text: [row.modelData.name ? row.modelData.number : "", row.modelData.label]
             .filter(function(part) { return part !== "" }).join(" · ")
+          textFormat: Text.PlainText
           color: Color.muted
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
@@ -208,6 +213,7 @@ Column {
       : root.status.state === "needs-permission" ? "The phone is not sharing contacts"
       : root.status.state === "syncing" ? "Syncing…"
       : Format.syncedText(root.status.synced, root.now)
+    textFormat: Text.PlainText
     color: root.status.state === "error" ? Color.urgent : Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.caption

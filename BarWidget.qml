@@ -55,6 +55,7 @@ Panel {
       visible: root.timerText !== ""
       anchors.verticalCenter: parent.verticalCenter
       text: root.timerText
+      textFormat: Text.PlainText
       color: root.bar ? root.bar.foreground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.caption

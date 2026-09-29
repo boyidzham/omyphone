@@ -52,6 +52,7 @@ Column {
     iconComponent: Component {
       Text {
         text: "󰏲"
+        textFormat: Text.PlainText
         color: Color.foreground
         font.family: Style.font.family
         font.pixelSize: Style.font.display
@@ -68,6 +69,7 @@ Column {
       : !root.phone.phone.found ? "No phone paired"
       : !root.phone.phone.powered ? "Bluetooth is off"
       : "Phone not connected\n" + root.phone.phone.name
+    textFormat: Text.PlainText
     color: Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body
@@ -128,6 +130,7 @@ Column {
     horizontalAlignment: Text.AlignHCenter
     wrapMode: Text.Wrap
     text: root.phone ? root.phone.lastError : ""
+    textFormat: Text.PlainText
     color: Color.urgent
     font.family: Style.font.family
     font.pixelSize: Style.font.caption

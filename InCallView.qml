@@ -23,6 +23,7 @@ Column {
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
     text: root.call ? Format.title(root.call) : ""
+    textFormat: Text.PlainText
     color: Color.foreground
     font.family: Style.font.family
     font.pixelSize: Style.font.title
@@ -34,6 +35,7 @@ Column {
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
     text: root.call ? Format.displayNumber(root.call.number) : ""
+    textFormat: Text.PlainText
     color: Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body
@@ -43,6 +45,7 @@ Column {
     width: parent.width
     horizontalAlignment: Text.AlignHCenter
     text: root.call ? Format.callStatus(root.call.state, root.call.since, root.now) : ""
+    textFormat: Text.PlainText
     color: Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.body

@@ -30,6 +30,7 @@ Column {
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideLeft
     text: root.number !== "" ? root.number : (root.dtmf ? " " : "Enter a number")
+    textFormat: Text.PlainText
     color: root.number !== "" ? Color.foreground : Color.muted
     font.family: Style.font.family
     font.pixelSize: Style.font.title
