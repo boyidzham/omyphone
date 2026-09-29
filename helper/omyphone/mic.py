@@ -10,6 +10,8 @@ from pathlib import Path
 
 from gi.repository import Gio, GLib
 
+from .contacts import write_private_text
+
 SOURCE = "@DEFAULT_AUDIO_SOURCE@"
 TIMEOUT_S = 5
 
@@ -72,8 +74,7 @@ class Mic:
             if value is None:
                 self._state.unlink(missing_ok=True)
             else:
-                self._state.parent.mkdir(parents=True, exist_ok=True)
-                self._state.write_text("1" if value else "0")
+                write_private_text(self._state, "1" if value else "0")
         except OSError as error:
             print(f"omyphone: could not save mic state: {error}", file=sys.stderr)
 

@@ -101,6 +101,14 @@ class MicTests(unittest.TestCase):
             self.assertFalse(wpctl.muted)
             self.assertFalse(state.exists())
 
+    def test_saved_state_is_private(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "omyphone" / "mic-before-call"
+            Mic(FakeWpctl(), state, run=run).set_muted(True)
+            self.assertEqual(state.read_text(), "0")
+            self.assertEqual(state.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(state.parent.stat().st_mode & 0o777, 0o700)
+
     def test_restore_now_blocks_for_shutdown(self):
         wpctl = FakeWpctl()
         ran = []

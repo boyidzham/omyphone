@@ -63,14 +63,21 @@ def rows(contacts):
 
 
 def write_private(path, data):
-    """Write JSON readable only by this user, through a temp file so a crash never leaves half a file."""
+    """Write JSON readable only by this user (see write_private_text)."""
+    write_private_text(path, json.dumps(data))
+
+
+def write_private_text(path, text):
+    """Write text readable only by this user, in a folder only this user can
+    open, through a temp file so a crash never leaves half a file."""
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path.parent.chmod(0o700)  # older versions made it readable by everyone
     tmp = path.with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as file:
         os.fchmod(file.fileno(), 0o600)
-        json.dump(data, file)
+        file.write(text)
     os.replace(tmp, path)
 
 

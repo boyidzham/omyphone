@@ -82,6 +82,12 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
         self.assertEqual(json.loads(path.read_text()), {"a": 1})
         self.assertEqual([p.name for p in self.dir.iterdir()], ["x.json"])
+        self.assertEqual(stat.S_IMODE(os.stat(self.dir).st_mode), 0o700)
+
+    def test_write_private_makes_an_old_open_folder_private(self):
+        self.dir.mkdir(mode=0o755)
+        write_private(self.dir / "x.json", {})
+        self.assertEqual(stat.S_IMODE(os.stat(self.dir).st_mode), 0o700)
 
     def test_contacts_round_trip(self):
         store = ContactsStore(self.dir / "contacts.json")
