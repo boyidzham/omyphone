@@ -1,10 +1,12 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from gi.repository import GLib
 
-from omyphone.phonebook import Phonebook
+from omyphone.phonebook import Phonebook, default_tmpdir
 from tests.harness import Fake, bus, needs_test_bus
 
 
@@ -22,6 +24,19 @@ def run(start, timeout=5.0):
     if not result:
         raise AssertionError("no callback")
     return result[0]
+
+
+class DefaultTmpdirTests(unittest.TestCase):
+    def test_runtime_dir(self):
+        with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": "/run/user/1000"}):
+            self.assertEqual(default_tmpdir(), Path("/run/user/1000/omyphone"))
+
+    def test_without_runtime_dir_uses_the_cache_not_tmp(self):
+        env = {k: v for k, v in os.environ.items() if k not in ("XDG_RUNTIME_DIR", "XDG_CACHE_HOME")}
+        with mock.patch.dict(os.environ, env, clear=True):
+            self.assertEqual(default_tmpdir(), Path.home() / ".cache" / "omyphone")
+        with mock.patch.dict(os.environ, {"XDG_CACHE_HOME": "/c"}, clear=True):
+            self.assertEqual(default_tmpdir(), Path("/c/omyphone"))
 
 
 @needs_test_bus
@@ -62,6 +77,18 @@ class PhonebookTests(unittest.TestCase):
         self.start_fake()
         self.pull()
         self.assertEqual(self.tmpdir.stat().st_mode & 0o777, 0o700)
+
+    def test_tmpdir_that_is_a_symlink_is_refused(self):
+        self.start_fake()
+        elsewhere = self.tmpdir.with_name("elsewhere")
+        elsewhere.mkdir()
+        (elsewhere / "pb.vcf").write_text("not ours")
+        self.tmpdir.symlink_to(elsewhere)
+        texts, errors = self.pull()
+        self.assertEqual(texts, {})
+        self.assertEqual(errors, {f: f"{self.tmpdir} is not a private folder" for f in ("pb", "cch")})
+        self.assertNotIn("CreateSession", " ".join(self.fake.log()))
+        self.assertEqual((elsewhere / "pb.vcf").read_text(), "not ours")
 
     def test_transfer_object_gone_counts_as_complete(self):
         self.start_fake()

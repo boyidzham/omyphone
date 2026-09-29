@@ -9,6 +9,7 @@ others: the result has the text of each folder pulled and the error of each
 one that was not.
 """
 import os
+import stat
 from pathlib import Path
 
 from gi.repository import Gio, GLib
@@ -23,7 +24,11 @@ TRANSFER = "org.bluez.obex.Transfer1"
 
 
 def default_tmpdir():
-    return Path(os.environ.get("XDG_RUNTIME_DIR") or "/tmp") / "omyphone"
+    """Never a fixed name under /tmp, which another user could create first."""
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime:
+        return Path(runtime) / "omyphone"
+    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "omyphone"
 
 
 def _later(ms, fn):
@@ -71,12 +76,18 @@ class _Pull:
         self.texts = {}
         self.errors = {}
         self.finished = False
+        self.checked = False  # tmpdir is known to be ours: only then clean it up
         self.timer = GLib.timeout_add(int(book.timeout_s * 1000), self._timeout)
 
     def start(self):
         try:
             self.tmpdir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            info = os.lstat(self.tmpdir)
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+                self._fail(f"{self.tmpdir} is not a private folder")
+                return
             self.tmpdir.chmod(0o700)
+            self.checked = True
         except OSError as error:
             self._fail(f"Could not create {self.tmpdir}: {error.strerror}")
             return
@@ -175,7 +186,7 @@ class _Pull:
         if self.session:
             self._remove(self.session)
             self.session = None
-        for leftover in self.tmpdir.glob("*.vcf"):
+        for leftover in self.tmpdir.glob("*.vcf") if self.checked else ():
             try:
                 leftover.unlink()
             except OSError:
