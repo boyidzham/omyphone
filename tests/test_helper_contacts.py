@@ -7,7 +7,7 @@ import time
 import unittest
 from pathlib import Path
 
-from tests.harness import Fake, Helper, Stubs, needs_test_bus, wait_until
+from tests.harness import Fake, Helper, Notifications, Stubs, needs_test_bus, wait_until
 
 ADDRESS = "AA:BB:CC:DD:EE:FF"
 
@@ -23,6 +23,8 @@ class HelperContactsTests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.dir = Path(tmp.name)
         self.stubs = Stubs(self.dir)
+        self.notifications = Notifications()
+        self.addCleanup(self.notifications.stop)
         self.bluez = Fake("fake_bluez.py", "org.bluez")
         self.addCleanup(self.bluez.stop)
         self.telephony = Fake("fake_telephony.py", "org.pipewire.Telephony")
@@ -122,7 +124,7 @@ class HelperContactsTests(unittest.TestCase):
         (path,) = self.telephony.control("AddCall", "(ss)", ("+60 12-345 6789", "incoming"), "(o)")
         self.helper.wait_for(is_event("call", path=path))
         self.telephony.control("RemoveCall", "(o)", (path,))
-        self.assertEqual(self.stubs.wait_notification("Missed call")[-1], "Ali Ahmad")
+        self.assertEqual(self.notifications.wait_shown("Missed call")["body"], "Ali Ahmad")
 
     def test_history_synced_again_after_a_call(self):
         self.synced()

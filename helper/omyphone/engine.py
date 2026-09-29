@@ -27,7 +27,7 @@ class Engine:
         self.recents = Recents(recents_path)
         self.calllog = CallLog(time.time, Path(recents_path).parent / "calls.json")
         self.mic = Mic(state_path=Path(recents_path).parent / "mic-before-call")
-        self.notifier = Notifier(lambda tab: self._emit("show", tab=tab))
+        self.notifier = Notifier(session_bus, lambda tab: self._emit("show", tab=tab))
         self.telephony = None
         self.link = None
         state_dir = Path(recents_path).parent
@@ -51,7 +51,6 @@ class Engine:
         self.link = PhoneLink(self._bluez_bus, self, self._address, poll_s=self._poll_s, retry_s=self._retry_s)
 
     def stop(self):
-        self.notifier.close_all()
         self.mic.restore_now()
 
     # --- listener methods (Telephony, PhoneLink) ---

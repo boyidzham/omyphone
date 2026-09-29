@@ -80,6 +80,23 @@ class Fake:
         wait_until(lambda: not name_has_owner(self.name), message=f"{self.name} did not go away")
 
 
+class Notifications(Fake):
+    """The fake notification service, and what it was asked to show."""
+
+    def __init__(self):
+        super().__init__("fake_notifications.py", "org.freedesktop.Notifications")
+
+    def shown(self):
+        return [json.loads(line) for line in self.log()]
+
+    def wait_shown(self, summary):
+        return wait_until(lambda: next((n for n in self.shown() if n["summary"] == summary), None),
+                          message=f"no notification titled {summary!r}")
+
+    def click(self, notification, action="default"):
+        self.control("Invoke", "(us)", (notification["id"], action))
+
+
 class Helper:
     """The real helper as a subprocess, with stubs first on PATH and fast timers."""
 
@@ -139,7 +156,7 @@ class Helper:
 
 
 class Stubs:
-    """What the stub notify-send and wpctl recorded, and a way to click a button."""
+    """What the stub wpctl and terminal commands recorded."""
 
     def __init__(self, workdir):
         self.dir = Path(workdir)
@@ -148,23 +165,8 @@ class Stubs:
         path = self.dir / name
         return path.read_text().splitlines() if path.exists() else []
 
-    def notifications(self):
-        return [json.loads(line) for line in self._lines("notify.log")]
-
-    def wait_notification(self, title):
-        return wait_until(lambda: next((n for n in self.notifications() if title in n), None),
-                          message=f"no notification titled {title!r}")
-
-    def choose(self, action):
-        tmp = self.dir / "action.tmp"
-        tmp.write_text(action + "\n")
-        tmp.rename(self.dir / "action")
-
     def wpctl(self):
         return self._lines("wpctl.log")
 
     def terminal(self):
         return [json.loads(line) for line in self._lines("terminal.log")]
-
-    def notify_pids(self):
-        return [int(line) for line in self._lines("notify.pids")]

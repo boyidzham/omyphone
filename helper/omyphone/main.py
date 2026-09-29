@@ -79,7 +79,7 @@ def main(argv=None):
 
     stdin.read_line_async(GLib.PRIORITY_DEFAULT, None, on_line)
     # A shell restart stops the helper with SIGTERM: quit cleanly so the mic is
-    # restored and waiting notifications are closed.
+    # restored.
     for signum in (signal.SIGTERM, signal.SIGINT):
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signum, lambda: loop.quit() or GLib.SOURCE_REMOVE)
     loop.run()

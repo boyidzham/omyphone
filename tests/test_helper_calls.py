@@ -6,7 +6,7 @@ from pathlib import Path
 
 from gi.repository import GLib
 
-from tests.harness import Fake, Helper, Stubs, bus, needs_test_bus, wait_until
+from tests.harness import Fake, Helper, Notifications, Stubs, bus, needs_test_bus, wait_until
 
 
 def is_event(name, **fields):
@@ -20,6 +20,8 @@ class HelperCallTests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.dir = Path(tmp.name)
         self.stubs = Stubs(self.dir)
+        self.notifications = Notifications()
+        self.addCleanup(self.notifications.stop)
         self.fake = Fake("fake_telephony.py", "org.pipewire.Telephony")
         # A lambda, so cleanup stops whichever fake is current (one test replaces it).
         self.addCleanup(lambda: self.fake.stop())
@@ -70,8 +72,8 @@ class HelperCallTests(unittest.TestCase):
         # send an Omarchy notification for a ringing call.
         self.start_helper()
         self.incoming("0199")
-        time.sleep(0.5)  # a notify-send started while ringing would have logged by now
-        self.assertEqual(self.stubs.notifications(), [])
+        time.sleep(0.5)  # a notification sent while ringing would have arrived by now
+        self.assertEqual(self.notifications.shown(), [])
 
     def test_decline_command_from_popup(self):
         self.start_helper()
@@ -86,18 +88,36 @@ class HelperCallTests(unittest.TestCase):
         self.fake.control("RemoveCall", "(o)", (path,))
         self.helper.wait_for(is_event("call-removed", path=path))
         self.assertEqual(self.last_recent()["direction"], "missed")
-        missed = self.stubs.wait_notification("Missed call")
-        self.assertEqual(missed[:2], ["-a", "omyphone"])
-        self.assertEqual(missed[-1], "0199")
+        missed = self.notifications.wait_shown("Missed call")
+        self.assertEqual((missed["app"], missed["body"]), ("omyphone", "0199"))
 
     def test_clicking_missed_notification_shows_missed_calls(self):
         self.start_helper()
         path = self.incoming("0199")
         self.fake.control("RemoveCall", "(o)", (path,))
-        missed = self.stubs.wait_notification("Missed call")
-        self.assertIn("default=Show missed calls", missed)
-        self.stubs.choose("default")
+        missed = self.notifications.wait_shown("Missed call")
+        self.assertEqual(missed["actions"], ["default", "Show missed calls"])
+        self.notifications.click(missed)
         self.assertEqual(self.helper.wait_for(is_event("show"))["tab"], "missed")
+
+    def test_clicking_another_notification_does_nothing(self):
+        self.start_helper()
+        path = self.incoming("0199")
+        self.fake.control("RemoveCall", "(o)", (path,))
+        missed = self.notifications.wait_shown("Missed call")
+        self.notifications.click({"id": missed["id"] + 1})
+        self.notifications.click(missed, "other")
+        self.helper.send({"cmd": "hangup", "call": "/nope"})  # an event to wait for after the clicks
+        self.assertEqual(self.helper.wait_for(lambda e: e.get("event") in ("show", "error"))["event"], "error")
+
+    def test_missed_call_without_a_notification_service(self):
+        self.notifications.stop()
+        self.start_helper()
+        path = self.incoming("0199")
+        self.fake.control("RemoveCall", "(o)", (path,))
+        self.assertEqual(self.last_recent()["direction"], "missed")
+        self.helper.send({"cmd": "hangup", "call": "/nope"})
+        self.helper.wait_for(is_event("error"))  # still running
 
     def test_tones(self):
         self.start_helper()
