@@ -56,6 +56,16 @@ class RecentsTests(unittest.TestCase):
         self.path.write_text("{not json")
         self.assertEqual(Recents(self.path).entries, [])
 
+    def test_corrupt_file_is_set_aside_not_overwritten(self):
+        self.path.parent.mkdir(parents=True)
+        self.path.write_text("{not json")
+        recents = Recents(self.path)
+        recents.add(entry("1"))
+        bad = self.path.with_name("recents.json.bad")
+        self.assertEqual(bad.read_text(), "{not json")
+        self.assertEqual(bad.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(len(Recents(self.path).entries), 1)
+
     def test_invalid_entries_are_dropped(self):
         self.path.parent.mkdir(parents=True)
         self.path.write_text(json.dumps([entry("1"), {"number": 5}, entry("2", "sideways"), "x"]))

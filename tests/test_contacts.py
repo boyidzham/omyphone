@@ -105,6 +105,15 @@ class StoreTests(unittest.TestCase):
         (self.dir / "history.json").write_text("[1, 2]")
         self.assertEqual(ContactsStore(self.dir / "contacts.json").contacts, [])
         self.assertEqual(HistoryStore(self.dir / "history.json").calls, [])
+        self.assertEqual((self.dir / "contacts.json.bad").read_text(), "{nope")
+        self.assertEqual((self.dir / "history.json.bad").read_text(), "[1, 2]")
+        self.assertFalse((self.dir / "contacts.json").exists())
+
+    def test_unreadable_file_is_set_aside(self):
+        self.dir.mkdir(parents=True)
+        (self.dir / "contacts.json").write_bytes(b"\xff\xfe")
+        self.assertEqual(ContactsStore(self.dir / "contacts.json").contacts, [])
+        self.assertEqual((self.dir / "contacts.json.bad").read_bytes(), b"\xff\xfe")
 
     def test_invalid_entries_are_dropped(self):
         self.dir.mkdir(parents=True)

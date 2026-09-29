@@ -74,12 +74,39 @@ def write_private(path, data):
     os.replace(tmp, path)
 
 
-def _read(path):
+def read_json(path, kind):
+    """The JSON saved in path if it is a kind (dict or list), else None.
+
+    A file that is there but unusable is renamed to <name>.bad first, so the
+    next save does not destroy what may still be recovered from it.
+    """
+    path = Path(path)
     try:
-        data = json.loads(Path(path).read_text())
-    except (OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
+        data = json.loads(path.read_text())
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as error:  # ValueError covers bad JSON and bad UTF-8
+        _set_aside(path, error)
+        return None
+    if not isinstance(data, kind):
+        _set_aside(path, f"not a JSON {kind.__name__}")
+        return None
+    return data
+
+
+def _set_aside(path, why):
+    bad = path.with_name(path.name + ".bad")
+    try:
+        os.replace(path, bad)
+        os.chmod(bad, 0o600)
+    except OSError as error:
+        print(f"omyphone: {path.name} is unusable ({why}) and could not be set aside: {error}", file=sys.stderr)
+        return
+    print(f"omyphone: {path.name} is unusable ({why}), moved to {bad.name}", file=sys.stderr)
+
+
+def _read(path):
+    return read_json(path, dict) or {}
 
 
 def _save(path, data):

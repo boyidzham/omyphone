@@ -3,12 +3,11 @@
 The file is readable only by this user, like the other state files: it holds
 phone numbers and call times.
 """
-import json
 import os
 import sys
 from pathlib import Path
 
-from .contacts import numbers_match, write_private
+from .contacts import numbers_match, read_json, write_private
 
 LIMIT = 100
 DIRECTIONS = ("incoming", "outgoing", "missed")
@@ -32,16 +31,13 @@ class Recents:
         self.entries = self._load()
 
     def _load(self):
-        try:
-            data = json.loads(self.path.read_text())
-        except (OSError, ValueError):
+        data = read_json(self.path, list)
+        if data is None:
             return []
         try:
             os.chmod(self.path, 0o600)  # older versions saved it readable by everyone
         except OSError:
             pass
-        if not isinstance(data, list):
-            return []
         return [e for e in data if _valid(e)][:LIMIT]
 
     def add(self, entry):

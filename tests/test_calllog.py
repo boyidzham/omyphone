@@ -135,6 +135,12 @@ class SavedCallLogTests(unittest.TestCase):
             log.update(P, "0123", "active")
             self.assertIsNone(log.remove(P))
 
+    def test_corrupt_file_is_set_aside(self):
+        self.path.parent.mkdir(parents=True)
+        self.path.write_text("not json")
+        CallLog(self.clock, self.path)
+        self.assertEqual(self.path.with_name(self.path.name + ".bad").read_text(), "not json")
+
 
 if __name__ == "__main__":
     unittest.main()

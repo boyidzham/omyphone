@@ -7,11 +7,10 @@ that restarted) picks the same call up again instead of guessing. A call first
 seen already going, such as when the phone connects mid-call, has no known
 direction or start: it gets no timer and is not logged.
 """
-import json
 import sys
 from pathlib import Path
 
-from .contacts import write_private
+from .contacts import read_json, write_private
 
 STARTS = ("incoming", "waiting", "dialing", "alerting")
 
@@ -86,11 +85,8 @@ class CallLog:
     def _load(self):
         if not self._path:
             return {}
-        try:
-            data = json.loads(self._path.read_text())
-        except (OSError, ValueError):
-            return {}
-        if not isinstance(data, dict):
+        data = read_json(self._path, dict)
+        if data is None:
             return {}
         return {path: info for path, info in data.items() if _valid(info)}
 
