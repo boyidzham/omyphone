@@ -5,7 +5,7 @@ from pathlib import Path
 from gi.repository import GLib
 
 from omyphone.contacts import ContactsStore, HistoryStore
-from omyphone.sync import INSTALL_ARGV, ContactsSync
+from omyphone.sync import INSTALL_ARGV, REFUSED, ContactsSync
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 FULL = {name: (FIXTURES / f"{name}.vcf").read_text() for name in ("pb", "cch", "mch")}
@@ -176,6 +176,11 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(self.listener.statuses[-1]["message"], "Unable to connect")
         self.assertEqual(self.state, "error")
         self.assertEqual(self.sync.contacts.contacts, cached)
+
+    def test_a_refused_connect_says_what_to_do(self):
+        self.book.results = ["OBEX Connect failed with 0x41"]
+        self.make().user_sync()
+        self.assertEqual((self.state, self.listener.statuses[-1]["message"]), ("error", REFUSED))
 
     def test_history_failure_keeps_a_good_phonebook(self):
         self.book.results = [({"pb": FULL["pb"]}, {"cch": "Forbidden", "mch": "Forbidden"})]

@@ -23,6 +23,10 @@ INSTALL_ARGV = ["omarchy-launch-floating-terminal-with-presentation", "omarchy-p
 FULL = ("pb", "cch", "mch")
 HISTORY = ("cch", "mch")
 CONNECT_RETRIES = 2
+# obexd reports a phone that turns the PC away as "OBEX Connect failed with 0x41"
+# (Unauthorized) or 0x43 (Forbidden). Say what to do about it instead.
+REFUSED_CODES = ("failed with 0x41", "failed with 0x43")
+REFUSED = "The phone refused. Turn on contact sharing for this PC in the phone's Bluetooth settings."
 
 
 def glib_schedule(seconds, fn):
@@ -187,6 +191,8 @@ class ContactsSync:
 
     def _phonebook_failed(self, message):
         print(f"omyphone: contacts sync failed: {message}", file=sys.stderr)
+        if any(code in message for code in REFUSED_CODES):
+            message = REFUSED
         self._remember("error", message)
         self._set("error", message)
         if self._connect_retries > 0:
